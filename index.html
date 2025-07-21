@@ -184,6 +184,7 @@
       <h4>Layer Tambahan</h4>
       <label><input type="checkbox" id="pbph-toggle"> PBPH (garis biru)</label>
       <label><input type="checkbox" id="kebun-toggle"> Kebun (garis hijau)</label>
+      <label><input type="checkbox" id="gambut-toggle"> Gambut (garis coklat)</label>
 
       <h4>Download Data</h4>
       <div class="dropdown">
@@ -263,6 +264,27 @@
         });
       });
 
+    // Layer Gambut (garis coklat)
+    let gambutLayer = null;
+    fetch('gambut.geojson')
+      .then(res => res.json())
+      .then(geo => {
+        gambutLayer = L.geoJSON(geo, {
+          style: {
+            color: "brown",
+            weight: 2,
+            fillOpacity: 0.1
+          },
+          onEachFeature: function (feature, layer) {
+            let popupText = '';
+            for (const key in feature.properties) {
+              popupText += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            }
+            layer.bindPopup(popupText);
+          }
+        });
+      });
+
     // Toggle Kebun Layer
     document.getElementById('kebun-toggle').addEventListener('change', function() {
       if (this.checked && kebunLayer) {
@@ -272,11 +294,21 @@
       }
     });
 
+    // Toggle PBPH Layer
     document.getElementById('pbph-toggle').addEventListener('change', function() {
       if (this.checked && pbphLayer) {
         pbphLayer.addTo(map);
       } else if (pbphLayer) {
         map.removeLayer(pbphLayer);
+      }
+    });
+
+    // Toggle Gambut Layer
+    document.getElementById('gambut-toggle').addEventListener('change', function() {
+      if (this.checked && gambutLayer) {
+        gambutLayer.addTo(map);
+      } else if (gambutLayer) {
+        map.removeLayer(gambutLayer);
       }
     });
 
