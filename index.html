@@ -183,6 +183,7 @@
 
       <h4>Layer Tambahan</h4>
       <label><input type="checkbox" id="pbph-toggle"> PBPH (garis biru)</label>
+      <label><input type="checkbox" id="kebun-toggle"> Kebun (garis hijau)</label>
 
       <h4>Download Data</h4>
       <div class="dropdown">
@@ -220,7 +221,7 @@
         }).addTo(map);
       });
 
-    // Tambahan PBPH Layer
+    // Layer PBPH
     let pbphLayer = null;
     fetch('PBPH.geojson')
       .then(res => res.json())
@@ -240,6 +241,36 @@
           }
         });
       });
+
+    // Layer Kebun (garis hijau)
+    let kebunLayer = null;
+    fetch('kebun.geojson')
+      .then(res => res.json())
+      .then(geo => {
+        kebunLayer = L.geoJSON(geo, {
+          style: {
+            color: "green",
+            weight: 2,
+            fillOpacity: 0.1
+          },
+          onEachFeature: function (feature, layer) {
+            let popupText = '';
+            for (const key in feature.properties) {
+              popupText += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            }
+            layer.bindPopup(popupText);
+          }
+        });
+      });
+
+    // Toggle Kebun Layer
+    document.getElementById('kebun-toggle').addEventListener('change', function() {
+      if (this.checked && kebunLayer) {
+        kebunLayer.addTo(map);
+      } else if (kebunLayer) {
+        map.removeLayer(kebunLayer);
+      }
+    });
 
     document.getElementById('pbph-toggle').addEventListener('change', function() {
       if (this.checked && pbphLayer) {
