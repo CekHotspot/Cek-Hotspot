@@ -7,20 +7,18 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
+<!-- TAMBAHAN UNTUK ANALISIS SPASIAL -->
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
 <style>
 
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;font-family:sans-serif;}
-
-body{
-display:flex;
-flex-direction:column;
-}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:sans-serif}
+body{display:flex;flex-direction:column}
 
 .header{
 display:grid;
@@ -30,27 +28,23 @@ padding:6px 10px;
 background:#444;
 color:white;
 height:60px;
+flex-shrink:0
 }
 
-.logo{
-height:36px;
-}
+.logo{height:36px}
 
 .title{
 text-align:center;
 font-size:13px;
 font-weight:bold;
-line-height:1.3;
+line-height:1.3
 }
 
-.main{
-flex:1;
-position:relative;
-}
+.main{flex:1;position:relative}
 
 #map{
 width:100%;
-height:100%;
+height:100%
 }
 
 .filters{
@@ -58,22 +52,21 @@ position:absolute;
 top:50%;
 left:10px;
 transform:translateY(-50%);
-background:white;
+background:rgba(255,255,255,0.95);
 padding:10px;
 border-radius:6px;
 font-size:13px;
 z-index:999;
-box-shadow:0 1px 6px rgba(0,0,0,0.2);
-max-width:90vw;
+box-shadow:0 1px 6px rgba(0,0,0,0.2)
 }
 
 .filters h4{
-margin:10px 0 6px;
+margin:10px 0 6px
 }
 
 .filters label{
 display:block;
-margin-bottom:4px;
+margin-bottom:4px
 }
 
 .export-button{
@@ -84,13 +77,12 @@ border:none;
 border-radius:4px;
 font-size:12px;
 cursor:pointer;
-width:100%;
-margin-bottom:4px;
+width:100%
 }
 
 .dropdown{
 position:relative;
-width:100%;
+width:100%
 }
 
 .dropdown-content{
@@ -99,52 +91,30 @@ position:absolute;
 background:white;
 min-width:140px;
 box-shadow:0 4px 8px rgba(0,0,0,0.1);
+z-index:1000;
 border:1px solid #ccc;
-border-radius:4px;
+border-radius:4px
 }
 
 .dropdown-content a{
-display:block;
+color:black;
 padding:8px 10px;
 text-decoration:none;
-color:black;
-font-size:13px;
+display:block
 }
 
 .dropdown-content a:hover{
-background:#eee;
+background:#f0f0f0
 }
 
 .dropdown:hover .dropdown-content{
-display:block;
-}
-
-#login-overlay{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:rgba(0,0,0,0.85);
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-color:white;
-z-index:10000;
+display:block
 }
 
 </style>
 </head>
 
 <body>
-
-<div id="login-overlay">
-<h2>Masukkan Password</h2>
-<input id="password-input" type="password">
-<button onclick="checkPassword()">Masuk</button>
-<div id="login-error" style="color:red;display:none;">Password salah</div>
-</div>
 
 <div class="header">
 <img src="logo-kiri.png" class="logo">
@@ -159,8 +129,7 @@ DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
 
 <div class="filters">
 
-<h4>Confidence Level</h4>
-
+<h4>Confidence</h4>
 <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
 <label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
 
@@ -170,33 +139,25 @@ DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
 <h4>Sumber</h4>
 <div id="sumber-filter"></div>
 
-<h4>Layer Tambahan</h4>
-
+<h4>Layer</h4>
 <label><input type="checkbox" id="pbph-toggle"> PBPH</label>
 <label><input type="checkbox" id="kebun-toggle"> Kebun</label>
+<label><input type="checkbox" id="gambut-toggle"> Gambut</label>
 
-<h4>Download Data</h4>
+<h4>Download</h4>
 
 <div class="dropdown">
-<button class="export-button">⬇️ Data</button>
-
+<button class="export-button">⬇️ Export</button>
 <div class="dropdown-content">
-<a href="#" onclick="exportTable('csv')">CSV</a>
-<a href="#" onclick="exportTable('xlsx')">XLSX</a>
-<a href="#" onclick="exportTable('pdf')">PDF</a>
+<a onclick="exportTable('csv')">CSV</a>
+<a onclick="exportTable('xlsx')">XLSX</a>
+<a onclick="exportTable('pdf')">PDF</a>
 </div>
 </div>
-
-<button class="export-button" onclick="exportPBPHHotspotPDF()">📄 Hotspot PBPH</button>
-
-<button class="export-button" onclick="exportKebunHotspotPDF()">📄 Hotspot Kebun</button>
-
-<button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
 
 </div>
 
 <div id="map"></div>
-
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -206,195 +167,243 @@ DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
 const map=L.map('map',{attributionControl:false}).setView([-2.5,117],5)
 
 L.tileLayer(
-'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-{maxZoom:18}
+'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 ).addTo(map)
 
 const hotspotLayer=L.layerGroup().addTo(map)
 
 let pbphLayer=null
 let kebunLayer=null
+let gambutLayer=null
+
+let pbphGeoJSON=null
+let kebunGeoJSON=null
+
+fetch('provinsi.geojson')
+.then(res=>res.json())
+.then(geo=>{
+L.geoJSON(geo,{style:{color:"black",weight:1,fillOpacity:0}}).addTo(map)
+})
+
+/* PBPH */
 
 fetch('PBPH.geojson')
-.then(r=>r.json())
-.then(g=>{
-pbphLayer=L.geoJSON(g,{style:{color:"blue",weight:1,fillOpacity:0}})
+.then(res=>res.json())
+.then(geo=>{
+
+pbphGeoJSON=geo
+
+pbphLayer=L.geoJSON(geo,{
+style:{color:"blue",weight:1,fillOpacity:0},
+onEachFeature:function(feature,layer){
+
+let txt=''
+
+for(const k in feature.properties){
+txt+=`<b>${k}</b>: ${feature.properties[k]}<br>`
+}
+
+layer.bindPopup(txt)
+
+}
 })
+
+})
+
+/* KEBUN */
 
 fetch('kebun.geojson')
-.then(r=>r.json())
-.then(g=>{
-kebunLayer=L.geoJSON(g,{style:{color:"green",weight:1,fillOpacity:0}})
+.then(res=>res.json())
+.then(geo=>{
+
+kebunGeoJSON=geo
+
+kebunLayer=L.geoJSON(geo,{
+style:{color:"green",weight:2,fillOpacity:0.1},
+onEachFeature:function(feature,layer){
+
+let txt=''
+
+for(const k in feature.properties){
+txt+=`<b>${k}</b>: ${feature.properties[k]}<br>`
+}
+
+layer.bindPopup(txt)
+
+}
 })
 
-document.getElementById('pbph-toggle').addEventListener('change',function(){
+})
+
+/* GAMBUT */
+
+fetch('gambut.geojson')
+.then(res=>res.json())
+.then(geo=>{
+
+gambutLayer=L.geoJSON(geo,{
+style:{color:"brown",weight:2,fillOpacity:0.1}
+})
+
+})
+
+/* TOGGLE */
+
+document.getElementById('pbph-toggle').onchange=function(){
+
 if(this.checked)pbphLayer.addTo(map)
 else map.removeLayer(pbphLayer)
-})
 
-document.getElementById('kebun-toggle').addEventListener('change',function(){
+}
+
+document.getElementById('kebun-toggle').onchange=function(){
+
 if(this.checked)kebunLayer.addTo(map)
 else map.removeLayer(kebunLayer)
-})
+
+}
+
+document.getElementById('gambut-toggle').onchange=function(){
+
+if(this.checked)gambutLayer.addTo(map)
+else map.removeLayer(gambutLayer)
+
+}
+
+/* ANALISIS SPASIAL */
+
+function hotspotDalamPolygon(lat,lon,geo){
+
+const pt=turf.point([lon,lat])
+
+for(let f of geo.features){
+
+if(turf.booleanPointInPolygon(pt,f)){
+return f.properties
+}
+
+}
+
+return null
+
+}
+
+/* HOTSPOT DATA */
 
 const url="https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional"
 
 let rawData=[]
 
-function extractTanggal(t){
-const p=t.split(',')[1]?.trim().split(' ')||[]
-return p.slice(0,3).join(' ')
-}
+function applyFilters(){
 
-function getSelectedFilters(){
-
-const levels=[...document.querySelectorAll('.confidence-filter:checked')].map(x=>x.value)
-
-const tanggal=[...document.querySelectorAll('.tanggal-filter:checked')].map(x=>x.value)
-
-const sumber=[...document.querySelectorAll('.sumber-filter:checked')].map(x=>x.value)
-
-return{levels,tanggal,sumber}
-}
-
-function fetchData(){
-
-fetch(url)
-.then(r=>r.json())
-.then(d=>{
-rawData=d
-})
-}
-
-function hotspotAnalysis(layer){
-
-const {levels,tanggal,sumber}=getSelectedFilters()
-
-const hasil={}
+hotspotLayer.clearLayers()
 
 rawData.forEach(row=>{
 
 const lat=parseFloat(row.Latitude)
 const lon=parseFloat(row.Longitude)
 
+if(isNaN(lat)||isNaN(lon))return
+
 const conf=row.Confidence_Level?.toLowerCase()
-const tgl=extractTanggal(row["Tanggal & Jam"]||"")
-const src=row.Sumber?.trim()||""
 
-if(!levels.includes(conf)||!tanggal.includes(tgl)||!sumber.includes(src))return
+const color=conf==="high"?"red":"yellow"
 
-const point=turf.point([lon,lat])
+/* ANALISIS PBPH */
 
-layer.eachLayer(function(poly){
+const pbph=pbphGeoJSON?
+hotspotDalamPolygon(lat,lon,pbphGeoJSON):null
 
-if(turf.booleanPointInPolygon(point,poly.feature)){
+/* ANALISIS KEBUN */
 
-const prov=row.Provinsi||"Unknown"
+const kebun=kebunGeoJSON?
+hotspotDalamPolygon(lat,lon,kebunGeoJSON):null
 
-const perusahaan=poly.feature.properties.NAMA_PERUSAHAAN
-||poly.feature.properties.nama
-||"Tidak diketahui"
+L.circleMarker([lat,lon],{
 
-if(!hasil[prov])hasil[prov]={}
+radius:6,
+fillColor:color,
+color:"#000",
+weight:1,
+fillOpacity:0.6
 
-if(!hasil[prov][perusahaan])hasil[prov][perusahaan]=0
+})
+.addTo(hotspotLayer)
+.bindPopup(`
 
-hasil[prov][perusahaan]++
+<b>${row["Tanggal & Jam"]}</b><br>
+${row.Provinsi} - ${row["Kab/Kota"]}<br>
+Kecamatan: ${row.Kecamatan}<br>
+Desa: ${row.Desa}<br>
 
-}
+Confidence: ${conf}<br>
+
+${pbph?"<b>PBPH:</b> "+(pbph.NAMA||pbph.NAMA_PBPH||"-")+"<br>":""}
+
+${kebun?"<b>Kebun:</b> "+(kebun.NAMA||kebun.PERUSAHAAN||"-")+"<br>":""}
+
+Koordinat: ${lat},${lon}<br>
+
+<a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">
+📍 Google Maps
+</a>
+
+`)
 
 })
 
-})
-
-return hasil
 }
 
-function generatePDF(data,title,file){
+/* FETCH DATA */
+
+fetch(url)
+.then(res=>res.json())
+.then(data=>{
+
+rawData=data
+
+applyFilters()
+
+})
+
+/* EXPORT */
+
+function exportTable(format){
+
+if(format==="csv"||format==="xlsx"){
+
+const ws=XLSX.utils.json_to_sheet(rawData)
+const wb=XLSX.utils.book_new()
+
+XLSX.utils.book_append_sheet(wb,ws,"Hotspot")
+
+XLSX.writeFile(wb,"hotspot."+format)
+
+}
+
+if(format==="pdf"){
 
 const {jsPDF}=window.jspdf
 
 const doc=new jsPDF()
 
-let table=[]
-
-for(const prov in data){
-
-for(const perusahaan in data[prov]){
-
-table.push([prov,perusahaan,data[prov][perusahaan]])
-
-}
-
-}
-
-doc.text(title,14,15)
+const table=rawData.map(r=>[
+r["Tanggal & Jam"],
+r.Provinsi,
+r["Kab/Kota"],
+r.Kecamatan,
+r.Desa,
+r.Latitude,
+r.Longitude
+])
 
 doc.autoTable({
-
-startY:20,
-
-head:[['Provinsi','Perusahaan','Jumlah Hotspot']],
-
+head:[["Tanggal","Provinsi","Kab/Kota","Kecamatan","Desa","Lat","Lng"]],
 body:table,
-
 styles:{fontSize:8}
-
 })
 
-doc.save(file)
-
-}
-
-function exportPBPHHotspotPDF(){
-
-if(!pbphLayer){alert("PBPH belum dimuat");return}
-
-const data=hotspotAnalysis(pbphLayer)
-
-generatePDF(data,"Analisis Hotspot PBPH","hotspot_pbph.pdf")
-
-}
-
-function exportKebunHotspotPDF(){
-
-if(!kebunLayer){alert("Kebun belum dimuat");return}
-
-const data=hotspotAnalysis(kebunLayer)
-
-generatePDF(data,"Analisis Hotspot Kebun","hotspot_kebun.pdf")
-
-}
-
-function checkPassword(){
-
-const p=document.getElementById('password-input').value
-
-if(p==="karla"){
-
-localStorage.setItem("hotspot_logged_in","true")
-
-document.getElementById('login-overlay').style.display='none'
-
-fetchData()
-
-}
-
-else{
-
-document.getElementById('login-error').style.display='block'
-
-}
-
-}
-
-window.onload=()=>{
-
-if(localStorage.getItem("hotspot_logged_in")==="true"){
-
-document.getElementById('login-overlay').style.display='none'
-
-fetchData()
+doc.save("hotspot.pdf")
 
 }
 
