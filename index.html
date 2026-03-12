@@ -2,21 +2,22 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Peta Hotspot</title>
+<title>Peta Hotspot Nasional</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <style>
 
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;font-family:sans-serif}
+html,body{height:100%;font-family:Arial}
+
 body{display:flex;flex-direction:column}
 
 .header{
@@ -34,10 +35,11 @@ height:60px
 .title{
 text-align:center;
 font-size:13px;
-font-weight:bold;
+font-weight:bold
 }
 
 .main{flex:1;position:relative}
+
 #map{width:100%;height:100%}
 
 .filters{
@@ -45,20 +47,21 @@ position:absolute;
 top:50%;
 left:10px;
 transform:translateY(-50%);
-background:rgba(255,255,255,.95);
+background:white;
 padding:10px;
 border-radius:6px;
 font-size:13px;
 z-index:999;
-box-shadow:0 1px 6px rgba(0,0,0,.2)
+box-shadow:0 2px 6px rgba(0,0,0,0.2);
+width:180px
 }
 
 .filters h4{margin:10px 0 6px}
 
 .filters label{display:block;margin-bottom:4px}
 
-.export-button{
-padding:6px 10px;
+.btn{
+padding:6px;
 background:#444;
 color:white;
 border:none;
@@ -66,65 +69,26 @@ border-radius:4px;
 font-size:12px;
 cursor:pointer;
 width:100%;
-margin-bottom:4px
+margin-top:4px
 }
-
-.dropdown{position:relative;width:100%}
-
-.dropdown-content{
-display:none;
-position:absolute;
-background:white;
-min-width:140px;
-box-shadow:0 4px 8px rgba(0,0,0,.1);
-z-index:1000;
-border:1px solid #ccc;
-border-radius:4px
-}
-
-.dropdown-content a{
-color:black;
-padding:8px 10px;
-text-decoration:none;
-display:block;
-font-size:13px
-}
-
-.dropdown-content a:hover{background:#f0f0f0}
-
-.dropdown:hover .dropdown-content{display:block}
 
 #login-overlay{
 position:fixed;
 top:0;left:0;width:100%;height:100%;
-background:rgba(0,0,0,.85);
+background:rgba(0,0,0,.9);
 color:white;
 display:flex;
 flex-direction:column;
 justify-content:center;
 align-items:center;
-z-index:10000
+z-index:9999
 }
 
 #login-overlay input{
 padding:10px;
 font-size:16px;
-border-radius:6px;
-border:none;
 margin-top:10px
 }
-
-#login-overlay button{
-margin-top:12px;
-padding:8px 16px;
-background:#444;
-color:white;
-border:none;
-border-radius:6px;
-cursor:pointer
-}
-
-#login-error{color:red;margin-top:10px;display:none}
 
 </style>
 </head>
@@ -134,15 +98,15 @@ cursor:pointer
 <div id="login-overlay">
 <h2>Masukkan Password</h2>
 <input id="password-input" type="password">
-<button onclick="checkPassword()">Masuk</button>
-<div id="login-error">Password salah</div>
+<button class="btn" onclick="checkPassword()">Masuk</button>
+<p id="login-error" style="color:red;display:none">Password salah</p>
 </div>
 
 <div class="header">
 <img src="logo-kiri.png" class="logo">
 <div class="title">
 DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-<small>Peta Hotspot Level Confidence Medium - High selama 3 hari</small>
+<small>Peta Hotspot Level Confidence Medium - High</small>
 </div>
 <img src="logo-kanan.png" class="logo">
 </div>
@@ -152,42 +116,32 @@ DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
 <div class="filters">
 
 <h4>Confidence</h4>
-<label><input type="checkbox" class="confidence-filter" value="medium" checked> Medium</label>
-<label><input type="checkbox" class="confidence-filter" value="high" checked> High</label>
+<label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
+<label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
 
 <h4>Tanggal</h4>
-<div id="tanggal-filter">Loading</div>
+<div id="tanggal-filter"></div>
 
 <h4>Sumber</h4>
-<div id="sumber-filter">Loading</div>
+<div id="sumber-filter"></div>
 
-<h4>Layer Tambahan</h4>
+<h4>Layer</h4>
 <label><input type="checkbox" id="pbph-toggle"> PBPH</label>
 <label><input type="checkbox" id="kebun-toggle"> Kebun</label>
 <label><input type="checkbox" id="gambut-toggle"> Gambut</label>
 
-<h4>Download Data</h4>
+<h4>Export</h4>
 
-<div class="dropdown">
-<button class="export-button">Pilih Format</button>
-<div class="dropdown-content">
-<a onclick="exportTable('csv')">CSV</a>
-<a onclick="exportTable('xlsx')">XLSX</a>
-<a onclick="exportTable('pdf')">PDF</a>
-</div>
-</div>
+<button class="btn" onclick="exportTable('csv')">⬇ CSV</button>
+<button class="btn" onclick="exportTable('xlsx')">⬇ XLSX</button>
+<button class="btn" onclick="exportTable('pdf')">⬇ PDF</button>
 
-<button class="export-button" onclick="window.print()">Cetak Peta</button>
+<h4>Analisis</h4>
 
-<h4>Analisis Hotspot</h4>
+<button class="btn" onclick="exportPBPH()">🔥 Hotspot PBPH</button>
+<button class="btn" onclick="exportKebun()">🌴 Hotspot Kebun</button>
 
-<button class="export-button" onclick="exportPBPH()">
-Hotspot di PBPH (PDF)
-</button>
-
-<button class="export-button" onclick="exportKebun()">
-Hotspot di Kebun (PDF)
-</button>
+<button class="btn" onclick="window.print()">🖨 Cetak Peta</button>
 
 </div>
 
@@ -195,14 +149,13 @@ Hotspot di Kebun (PDF)
 
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
 
 const map=L.map('map',{attributionControl:false}).setView([-2.5,117],5)
 
 L.tileLayer(
-'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+{maxZoom:18}
 ).addTo(map)
 
 const hotspotLayer=L.layerGroup().addTo(map)
@@ -212,21 +165,21 @@ let kebunLayer=null
 let gambutLayer=null
 
 fetch('PBPH.geojson')
-.then(res=>res.json())
-.then(geo=>{
-pbphLayer=L.geoJSON(geo,{style:{color:"blue",weight:1,fillOpacity:0}})
+.then(r=>r.json())
+.then(g=>{
+pbphLayer=L.geoJSON(g,{style:{color:"blue",weight:1,fillOpacity:0}})
 })
 
 fetch('kebun.geojson')
-.then(res=>res.json())
-.then(geo=>{
-kebunLayer=L.geoJSON(geo,{style:{color:"green",weight:2,fillOpacity:.1}})
+.then(r=>r.json())
+.then(g=>{
+kebunLayer=L.geoJSON(g,{style:{color:"green",weight:2,fillOpacity:0.1}})
 })
 
 fetch('gambut.geojson')
-.then(res=>res.json())
-.then(geo=>{
-gambutLayer=L.geoJSON(geo,{style:{color:"brown",weight:2,fillOpacity:.1}})
+.then(r=>r.json())
+.then(g=>{
+gambutLayer=L.geoJSON(g,{style:{color:"brown",weight:2,fillOpacity:0.1}})
 })
 
 document.getElementById('pbph-toggle').onchange=e=>{
@@ -248,86 +201,42 @@ const url="https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI
 
 let rawData=[]
 
-function getLastThreeDates(){
-const options={day:'2-digit',month:'long',year:'numeric'}
-const result=[]
-for(let i=0;i<3;i++){
-const d=new Date()
-d.setDate(d.getDate()-i)
-result.push(d.toLocaleDateString('id-ID',options))
-}
-return result
-}
-
 function extractTanggal(t){
-const parts=t.split(',')[1]?.trim().split(' ')||[]
-return parts.slice(0,3).join(' ')
-}
-
-function renderFilterTanggal(){
-const div=document.getElementById("tanggal-filter")
-const list=getLastThreeDates()
-div.innerHTML=""
-list.forEach(t=>{
-div.innerHTML+=`<label><input type="checkbox" class="tanggal-filter" value="${t}" checked> ${t}</label>`
-})
-}
-
-function renderFilterSumber(data){
-const s=new Set()
-data.forEach(r=>{if(r.Sumber)s.add(r.Sumber.trim())})
-const div=document.getElementById("sumber-filter")
-div.innerHTML=""
-Array.from(s).forEach(v=>{
-div.innerHTML+=`<label><input type="checkbox" class="sumber-filter" value="${v}" checked> ${v}</label>`
-})
-}
-
-function getSelectedFilters(){
-const levels=[...document.querySelectorAll('.confidence-filter:checked')].map(cb=>cb.value)
-const tanggal=[...document.querySelectorAll('.tanggal-filter:checked')].map(cb=>cb.value)
-const sumber=[...document.querySelectorAll('.sumber-filter:checked')].map(cb=>cb.value)
-return{levels,tanggal,sumber}
+const p=t.split(',')[1]?.trim().split(' ')||[]
+return p.slice(0,3).join(' ')
 }
 
 function applyFilters(){
 
-const{levels,tanggal,sumber}=getSelectedFilters()
-
 hotspotLayer.clearLayers()
 
-rawData.forEach(row=>{
+const levels=[...document.querySelectorAll('.confidence-filter:checked')].map(cb=>cb.value)
 
-const lat=parseFloat(row.Latitude)
-const lon=parseFloat(row.Longitude)
+rawData.forEach(r=>{
+
+const lat=parseFloat(r.Latitude)
+const lon=parseFloat(r.Longitude)
 
 if(isNaN(lat)||isNaN(lon))return
 
-const conf=row.Confidence_Level?.toLowerCase()
-const waktu=row["Tanggal & Jam"]||""
-const tanggalOnly=extractTanggal(waktu)
-const sumberVal=row.Sumber?.trim()||""
+const conf=r.Confidence_Level?.toLowerCase()
 
-if(!levels.includes(conf)||!tanggal.includes(tanggalOnly)||!sumber.includes(sumberVal))return
+if(!levels.includes(conf))return
 
-const color=conf==="high"?"red":"yellow"
-
-L.circleMarker([lat,lon],{
-radius:6,
-fillColor:color,
-color:'#000',
-weight:1,
-opacity:.5,
-fillOpacity:.5
+const icon=L.divIcon({
+html:conf==="high"?"🔴":"🟡",
+className:"",
+iconSize:[20,20]
 })
+
+L.marker([lat,lon],{icon:icon})
 .addTo(hotspotLayer)
 .bindPopup(`
-<b>${waktu}</b><br>
-${row.Provinsi} - ${row["Kab/Kota"]}<br>
+<b>${r["Tanggal & Jam"]}</b><br>
+${r.Provinsi} - ${r["Kab/Kota"]}<br>
 Confidence : ${conf}<br>
-Sumber : ${sumberVal}<br>
 <a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">
-Google Maps
+📍 Google Maps
 </a>
 `)
 
@@ -338,21 +247,10 @@ Google Maps
 function fetchData(){
 
 fetch(url)
-.then(res=>res.json())
+.then(r=>r.json())
 .then(data=>{
-
 rawData=data
-
-renderFilterTanggal()
-
-renderFilterSumber(data)
-
 applyFilters()
-
-document.querySelectorAll('.filters input').forEach(cb=>{
-cb.addEventListener('change',applyFilters)
-})
-
 })
 
 }
@@ -372,10 +270,15 @@ const pt=turf.point([lon,lat])
 
 let inside=false
 
+if(pbphLayer){
+
 pbphLayer.eachLayer(l=>{
 const poly=l.toGeoJSON()
+
 if(turf.booleanPointInPolygon(pt,poly))inside=true
 })
+
+}
 
 if(inside){
 
@@ -394,19 +297,18 @@ r.Confidence_Level
 
 })
 
-const{jsPDF}=window.jspdf
+const {jsPDF}=window.jspdf
 
 const doc=new jsPDF()
 
-doc.text("Hotspot di PBPH",14,10)
+doc.text("Analisis Hotspot PBPH",14,10)
 
 doc.autoTable({
 head:[['Tanggal','Prov','Kab','Kec','Desa','Lat','Lng','Conf']],
-body:hasil,
-styles:{fontSize:8}
+body:hasil
 })
 
-doc.save("hotspot_PBPH.pdf")
+doc.save("hotspot_pbph.pdf")
 
 }
 
@@ -425,10 +327,15 @@ const pt=turf.point([lon,lat])
 
 let inside=false
 
+if(kebunLayer){
+
 kebunLayer.eachLayer(l=>{
 const poly=l.toGeoJSON()
+
 if(turf.booleanPointInPolygon(pt,poly))inside=true
 })
+
+}
 
 if(inside){
 
@@ -447,16 +354,15 @@ r.Confidence_Level
 
 })
 
-const{jsPDF}=window.jspdf
+const {jsPDF}=window.jspdf
 
 const doc=new jsPDF()
 
-doc.text("Hotspot di Area Kebun",14,10)
+doc.text("Analisis Hotspot Kebun",14,10)
 
 doc.autoTable({
 head:[['Tanggal','Prov','Kab','Kec','Desa','Lat','Lng','Conf']],
-body:hasil,
-styles:{fontSize:8}
+body:hasil
 })
 
 doc.save("hotspot_kebun.pdf")
@@ -465,19 +371,19 @@ doc.save("hotspot_kebun.pdf")
 
 function checkPassword(){
 
-const input=document.getElementById('password-input').value
+const pass=document.getElementById('password-input').value
 
-if(input==="karla"){
+if(pass==="karla"){
 
-localStorage.setItem("hotspot_logged_in","true")
+localStorage.setItem("login","true")
 
-document.getElementById('login-overlay').style.display='none'
+document.getElementById('login-overlay').style.display="none"
 
 fetchData()
 
 }else{
 
-document.getElementById('login-error').style.display='block'
+document.getElementById('login-error').style.display="block"
 
 }
 
@@ -485,11 +391,9 @@ document.getElementById('login-error').style.display='block'
 
 window.onload=()=>{
 
-const logged=localStorage.getItem("hotspot_logged_in")
+if(localStorage.getItem("login")==="true"){
 
-if(logged==="true"){
-
-document.getElementById('login-overlay').style.display='none'
+document.getElementById('login-overlay').style.display="none"
 
 fetchData()
 
