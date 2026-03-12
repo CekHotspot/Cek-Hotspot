@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Peta Hotspot Nasional</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"/>
+<title>Peta Hotspot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 <style>
 
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;font-family:Arial}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:sans-serif;}
 
-body{display:flex;flex-direction:column}
+body{
+display:flex;
+flex-direction:column;
+}
 
 .header{
 display:grid;
@@ -27,20 +29,29 @@ align-items:center;
 padding:6px 10px;
 background:#444;
 color:white;
-height:60px
+height:60px;
 }
 
-.logo{height:36px}
+.logo{
+height:36px;
+}
 
 .title{
 text-align:center;
 font-size:13px;
-font-weight:bold
+font-weight:bold;
+line-height:1.3;
 }
 
-.main{flex:1;position:relative}
+.main{
+flex:1;
+position:relative;
+}
 
-#map{width:100%;height:100%}
+#map{
+width:100%;
+height:100%;
+}
 
 .filters{
 position:absolute;
@@ -52,16 +63,21 @@ padding:10px;
 border-radius:6px;
 font-size:13px;
 z-index:999;
-box-shadow:0 2px 6px rgba(0,0,0,0.2);
-width:180px
+box-shadow:0 1px 6px rgba(0,0,0,0.2);
+max-width:90vw;
 }
 
-.filters h4{margin:10px 0 6px}
+.filters h4{
+margin:10px 0 6px;
+}
 
-.filters label{display:block;margin-bottom:4px}
+.filters label{
+display:block;
+margin-bottom:4px;
+}
 
-.btn{
-padding:6px;
+.export-button{
+padding:6px 10px;
 background:#444;
 color:white;
 border:none;
@@ -69,25 +85,53 @@ border-radius:4px;
 font-size:12px;
 cursor:pointer;
 width:100%;
-margin-top:4px
+margin-bottom:4px;
+}
+
+.dropdown{
+position:relative;
+width:100%;
+}
+
+.dropdown-content{
+display:none;
+position:absolute;
+background:white;
+min-width:140px;
+box-shadow:0 4px 8px rgba(0,0,0,0.1);
+border:1px solid #ccc;
+border-radius:4px;
+}
+
+.dropdown-content a{
+display:block;
+padding:8px 10px;
+text-decoration:none;
+color:black;
+font-size:13px;
+}
+
+.dropdown-content a:hover{
+background:#eee;
+}
+
+.dropdown:hover .dropdown-content{
+display:block;
 }
 
 #login-overlay{
 position:fixed;
-top:0;left:0;width:100%;height:100%;
-background:rgba(0,0,0,.9);
-color:white;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.85);
 display:flex;
 flex-direction:column;
 justify-content:center;
 align-items:center;
-z-index:9999
-}
-
-#login-overlay input{
-padding:10px;
-font-size:16px;
-margin-top:10px
+color:white;
+z-index:10000;
 }
 
 </style>
@@ -98,15 +142,15 @@ margin-top:10px
 <div id="login-overlay">
 <h2>Masukkan Password</h2>
 <input id="password-input" type="password">
-<button class="btn" onclick="checkPassword()">Masuk</button>
-<p id="login-error" style="color:red;display:none">Password salah</p>
+<button onclick="checkPassword()">Masuk</button>
+<div id="login-error" style="color:red;display:none;">Password salah</div>
 </div>
 
 <div class="header">
 <img src="logo-kiri.png" class="logo">
 <div class="title">
 DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-<small>Peta Hotspot Level Confidence Medium - High</small>
+<small>Peta Hotspot Level Confidence Medium - High selama 3 hari</small>
 </div>
 <img src="logo-kanan.png" class="logo">
 </div>
@@ -115,7 +159,8 @@ DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
 
 <div class="filters">
 
-<h4>Confidence</h4>
+<h4>Confidence Level</h4>
+
 <label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
 <label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
 
@@ -125,29 +170,36 @@ DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
 <h4>Sumber</h4>
 <div id="sumber-filter"></div>
 
-<h4>Layer</h4>
+<h4>Layer Tambahan</h4>
+
 <label><input type="checkbox" id="pbph-toggle"> PBPH</label>
 <label><input type="checkbox" id="kebun-toggle"> Kebun</label>
-<label><input type="checkbox" id="gambut-toggle"> Gambut</label>
 
-<h4>Export</h4>
+<h4>Download Data</h4>
 
-<button class="btn" onclick="exportTable('csv')">⬇ CSV</button>
-<button class="btn" onclick="exportTable('xlsx')">⬇ XLSX</button>
-<button class="btn" onclick="exportTable('pdf')">⬇ PDF</button>
+<div class="dropdown">
+<button class="export-button">⬇️ Data</button>
 
-<h4>Analisis</h4>
+<div class="dropdown-content">
+<a href="#" onclick="exportTable('csv')">CSV</a>
+<a href="#" onclick="exportTable('xlsx')">XLSX</a>
+<a href="#" onclick="exportTable('pdf')">PDF</a>
+</div>
+</div>
 
-<button class="btn" onclick="exportPBPH()">🔥 Hotspot PBPH</button>
-<button class="btn" onclick="exportKebun()">🌴 Hotspot Kebun</button>
+<button class="export-button" onclick="exportPBPHHotspotPDF()">📄 Hotspot PBPH</button>
 
-<button class="btn" onclick="window.print()">🖨 Cetak Peta</button>
+<button class="export-button" onclick="exportKebunHotspotPDF()">📄 Hotspot Kebun</button>
+
+<button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
 
 </div>
 
 <div id="map"></div>
 
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
@@ -162,7 +214,6 @@ const hotspotLayer=L.layerGroup().addTo(map)
 
 let pbphLayer=null
 let kebunLayer=null
-let gambutLayer=null
 
 fetch('PBPH.geojson')
 .then(r=>r.json())
@@ -173,29 +224,18 @@ pbphLayer=L.geoJSON(g,{style:{color:"blue",weight:1,fillOpacity:0}})
 fetch('kebun.geojson')
 .then(r=>r.json())
 .then(g=>{
-kebunLayer=L.geoJSON(g,{style:{color:"green",weight:2,fillOpacity:0.1}})
+kebunLayer=L.geoJSON(g,{style:{color:"green",weight:1,fillOpacity:0}})
 })
 
-fetch('gambut.geojson')
-.then(r=>r.json())
-.then(g=>{
-gambutLayer=L.geoJSON(g,{style:{color:"brown",weight:2,fillOpacity:0.1}})
-})
-
-document.getElementById('pbph-toggle').onchange=e=>{
-if(e.target.checked)pbphLayer.addTo(map)
+document.getElementById('pbph-toggle').addEventListener('change',function(){
+if(this.checked)pbphLayer.addTo(map)
 else map.removeLayer(pbphLayer)
-}
+})
 
-document.getElementById('kebun-toggle').onchange=e=>{
-if(e.target.checked)kebunLayer.addTo(map)
+document.getElementById('kebun-toggle').addEventListener('change',function(){
+if(this.checked)kebunLayer.addTo(map)
 else map.removeLayer(kebunLayer)
-}
-
-document.getElementById('gambut-toggle').onchange=e=>{
-if(e.target.checked)gambutLayer.addTo(map)
-else map.removeLayer(gambutLayer)
-}
+})
 
 const url="https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional"
 
@@ -206,184 +246,143 @@ const p=t.split(',')[1]?.trim().split(' ')||[]
 return p.slice(0,3).join(' ')
 }
 
-function applyFilters(){
+function getSelectedFilters(){
 
-hotspotLayer.clearLayers()
+const levels=[...document.querySelectorAll('.confidence-filter:checked')].map(x=>x.value)
 
-const levels=[...document.querySelectorAll('.confidence-filter:checked')].map(cb=>cb.value)
+const tanggal=[...document.querySelectorAll('.tanggal-filter:checked')].map(x=>x.value)
 
-rawData.forEach(r=>{
+const sumber=[...document.querySelectorAll('.sumber-filter:checked')].map(x=>x.value)
 
-const lat=parseFloat(r.Latitude)
-const lon=parseFloat(r.Longitude)
-
-if(isNaN(lat)||isNaN(lon))return
-
-const conf=r.Confidence_Level?.toLowerCase()
-
-if(!levels.includes(conf))return
-
-const icon=L.divIcon({
-html:conf==="high"?"🔴":"🟡",
-className:"",
-iconSize:[20,20]
-})
-
-L.marker([lat,lon],{icon:icon})
-.addTo(hotspotLayer)
-.bindPopup(`
-<b>${r["Tanggal & Jam"]}</b><br>
-${r.Provinsi} - ${r["Kab/Kota"]}<br>
-Confidence : ${conf}<br>
-<a href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">
-📍 Google Maps
-</a>
-`)
-
-})
-
+return{levels,tanggal,sumber}
 }
 
 function fetchData(){
 
 fetch(url)
 .then(r=>r.json())
-.then(data=>{
-rawData=data
-applyFilters()
+.then(d=>{
+rawData=d
 })
-
 }
 
-function exportPBPH(){
+function hotspotAnalysis(layer){
 
-const hasil=[]
+const {levels,tanggal,sumber}=getSelectedFilters()
 
-rawData.forEach(r=>{
+const hasil={}
 
-const lat=parseFloat(r.Latitude)
-const lon=parseFloat(r.Longitude)
+rawData.forEach(row=>{
 
-if(isNaN(lat)||isNaN(lon))return
+const lat=parseFloat(row.Latitude)
+const lon=parseFloat(row.Longitude)
 
-const pt=turf.point([lon,lat])
+const conf=row.Confidence_Level?.toLowerCase()
+const tgl=extractTanggal(row["Tanggal & Jam"]||"")
+const src=row.Sumber?.trim()||""
 
-let inside=false
+if(!levels.includes(conf)||!tanggal.includes(tgl)||!sumber.includes(src))return
 
-if(pbphLayer){
+const point=turf.point([lon,lat])
 
-pbphLayer.eachLayer(l=>{
-const poly=l.toGeoJSON()
+layer.eachLayer(function(poly){
 
-if(turf.booleanPointInPolygon(pt,poly))inside=true
-})
+if(turf.booleanPointInPolygon(point,poly.feature)){
 
-}
+const prov=row.Provinsi||"Unknown"
 
-if(inside){
+const perusahaan=poly.feature.properties.NAMA_PERUSAHAAN
+||poly.feature.properties.nama
+||"Tidak diketahui"
 
-hasil.push([
-r["Tanggal & Jam"],
-r.Provinsi,
-r["Kab/Kota"],
-r.Kecamatan,
-r.Desa,
-lat,
-lon,
-r.Confidence_Level
-])
+if(!hasil[prov])hasil[prov]={}
+
+if(!hasil[prov][perusahaan])hasil[prov][perusahaan]=0
+
+hasil[prov][perusahaan]++
 
 }
 
 })
+
+})
+
+return hasil
+}
+
+function generatePDF(data,title,file){
 
 const {jsPDF}=window.jspdf
 
 const doc=new jsPDF()
 
-doc.text("Analisis Hotspot PBPH",14,10)
+let table=[]
+
+for(const prov in data){
+
+for(const perusahaan in data[prov]){
+
+table.push([prov,perusahaan,data[prov][perusahaan]])
+
+}
+
+}
+
+doc.text(title,14,15)
 
 doc.autoTable({
-head:[['Tanggal','Prov','Kab','Kec','Desa','Lat','Lng','Conf']],
-body:hasil
+
+startY:20,
+
+head:[['Provinsi','Perusahaan','Jumlah Hotspot']],
+
+body:table,
+
+styles:{fontSize:8}
+
 })
 
-doc.save("hotspot_pbph.pdf")
+doc.save(file)
 
 }
 
-function exportKebun(){
+function exportPBPHHotspotPDF(){
 
-const hasil=[]
+if(!pbphLayer){alert("PBPH belum dimuat");return}
 
-rawData.forEach(r=>{
+const data=hotspotAnalysis(pbphLayer)
 
-const lat=parseFloat(r.Latitude)
-const lon=parseFloat(r.Longitude)
-
-if(isNaN(lat)||isNaN(lon))return
-
-const pt=turf.point([lon,lat])
-
-let inside=false
-
-if(kebunLayer){
-
-kebunLayer.eachLayer(l=>{
-const poly=l.toGeoJSON()
-
-if(turf.booleanPointInPolygon(pt,poly))inside=true
-})
+generatePDF(data,"Analisis Hotspot PBPH","hotspot_pbph.pdf")
 
 }
 
-if(inside){
+function exportKebunHotspotPDF(){
 
-hasil.push([
-r["Tanggal & Jam"],
-r.Provinsi,
-r["Kab/Kota"],
-r.Kecamatan,
-r.Desa,
-lat,
-lon,
-r.Confidence_Level
-])
+if(!kebunLayer){alert("Kebun belum dimuat");return}
 
-}
+const data=hotspotAnalysis(kebunLayer)
 
-})
-
-const {jsPDF}=window.jspdf
-
-const doc=new jsPDF()
-
-doc.text("Analisis Hotspot Kebun",14,10)
-
-doc.autoTable({
-head:[['Tanggal','Prov','Kab','Kec','Desa','Lat','Lng','Conf']],
-body:hasil
-})
-
-doc.save("hotspot_kebun.pdf")
+generatePDF(data,"Analisis Hotspot Kebun","hotspot_kebun.pdf")
 
 }
 
 function checkPassword(){
 
-const pass=document.getElementById('password-input').value
+const p=document.getElementById('password-input').value
 
-if(pass==="karla"){
+if(p==="karla"){
 
-localStorage.setItem("login","true")
+localStorage.setItem("hotspot_logged_in","true")
 
-document.getElementById('login-overlay').style.display="none"
+document.getElementById('login-overlay').style.display='none'
 
 fetchData()
 
-}else{
+}
 
-document.getElementById('login-error').style.display="block"
+else{
+
+document.getElementById('login-error').style.display='block'
 
 }
 
@@ -391,9 +390,9 @@ document.getElementById('login-error').style.display="block"
 
 window.onload=()=>{
 
-if(localStorage.getItem("login")==="true"){
+if(localStorage.getItem("hotspot_logged_in")==="true"){
 
-document.getElementById('login-overlay').style.display="none"
+document.getElementById('login-overlay').style.display='none'
 
 fetchData()
 
