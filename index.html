@@ -1,34 +1,67 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>Peta Hotspot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
+
+  <!-- SheetJS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- jsPDF AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-  <!-- TAMBAHAN: Turf untuk cek hotspot di polygon -->
+  <!-- Turf -->
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; font-family: sans-serif; }
-    body { display: flex; flex-direction: column; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
 
     .header {
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
+      gap: 10px;
+      height: 60px;
       padding: 6px 10px;
       background-color: #444;
       color: white;
-      height: 60px;
       flex-shrink: 0;
     }
 
-    .logo { height: 36px; }
+    .logo {
+      height: 36px;
+      max-width: 120px;
+      object-fit: contain;
+    }
 
     .title {
       text-align: center;
@@ -37,21 +70,36 @@
       line-height: 1.3;
     }
 
-    .main { flex: 1; position: relative; }
-    #map { width: 100%; height: 100%; }
+    .title small {
+      font-weight: normal;
+    }
+
+    .main {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
 
     .filters {
       position: absolute;
       top: 50%;
       left: 10px;
+      z-index: 999;
+      width: 220px;
+      max-width: calc(100vw - 20px);
+      max-height: calc(100vh - 90px);
+      padding: 10px;
+      overflow-y: auto;
       transform: translateY(-50%);
       background: rgba(255, 255, 255, 0.95);
-      padding: 10px;
       border-radius: 6px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
       font-size: 13px;
-      z-index: 999;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.2);
-      max-width: 90vw;
     }
 
     .filters h4 {
@@ -59,21 +107,42 @@
       font-size: 14px;
     }
 
+    .filters h4:first-child {
+      margin-top: 0;
+    }
+
     .filters label {
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+
+    .filter-message {
+      color: #666;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .error-message {
+      color: #b00020;
+      font-size: 12px;
+      line-height: 1.4;
     }
 
     .export-button {
-      padding: 6px 10px;
+      width: 100%;
+      margin-top: 4px;
+      padding: 7px 10px;
       background-color: #444;
       color: white;
       border: none;
       border-radius: 4px;
       font-size: 12px;
       cursor: pointer;
-      width: 100%;
-      margin-top:4px;
+    }
+
+    .export-button:hover {
+      background-color: #222;
     }
 
     .dropdown {
@@ -84,19 +153,20 @@
     .dropdown-content {
       display: none;
       position: absolute;
-      background-color: white;
-      min-width: 140px;
-      box-shadow: 0px 4px 8px rgba(0,0,0,0.1);
       z-index: 1000;
+      width: 100%;
+      min-width: 160px;
+      background-color: white;
       border: 1px solid #ccc;
       border-radius: 4px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
 
     .dropdown-content a {
-      color: black;
-      padding: 8px 10px;
-      text-decoration: none;
       display: block;
+      padding: 8px 10px;
+      color: black;
+      text-decoration: none;
       font-size: 13px;
     }
 
@@ -108,397 +178,1505 @@
       display: block;
     }
 
-    @media print {
-      .header, .filters {
-        display: none !important;
-      }
-      #map {
-        height: 100vh !important;
-        width: 100vw !important;
-      }
-    }
-
     #login-overlay {
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background-color: rgba(0, 0, 0, 0.85);
-      color: white;
+      inset: 0;
+      z-index: 10000;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 10000;
+      padding: 20px;
+      background-color: rgba(0, 0, 0, 0.88);
+      color: white;
     }
 
     #login-overlay input {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
+      width: 250px;
+      max-width: 90vw;
       margin-top: 10px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
     }
 
     #login-overlay button {
       margin-top: 12px;
-      padding: 8px 16px;
-      font-size: 14px;
+      padding: 8px 20px;
       background-color: #444;
       color: white;
-      border: none;
+      border: 1px solid #777;
       border-radius: 6px;
+      font-size: 14px;
       cursor: pointer;
     }
 
     #login-error {
-      color: red;
-      margin-top: 10px;
       display: none;
+      margin-top: 10px;
+      color: #ff6b6b;
+    }
+
+    @media (max-width: 600px) {
+      .header {
+        grid-template-columns: 45px 1fr 45px;
+      }
+
+      .logo {
+        width: 45px;
+        height: 32px;
+      }
+
+      .title {
+        font-size: 10px;
+      }
+
+      .filters {
+        top: 10px;
+        left: 10px;
+        width: 200px;
+        max-height: calc(100vh - 100px);
+        transform: none;
+      }
+    }
+
+    @media print {
+      .header,
+      .filters,
+      #login-overlay {
+        display: none !important;
+      }
+
+      #map {
+        width: 100vw !important;
+        height: 100vh !important;
+      }
     }
   </style>
 </head>
+
 <body>
 
-<div id="login-overlay">
-  <h2>Masukkan Password</h2>
-  <input id="password-input" type="password" placeholder="Password" />
-  <button onclick="checkPassword()">Masuk</button>
-  <div id="login-error">Password salah</div>
-</div>
+  <div id="login-overlay">
+    <h2>Masukkan Password</h2>
 
-<div class="header">
-  <img src="logo-kiri.png" class="logo">
-  <div class="title">
-    DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN<br>
-    <small>Peta Hotspot Level Confidence Medium - High selama 3 hari</small>
+    <input
+      id="password-input"
+      type="password"
+      placeholder="Password"
+      autocomplete="current-password"
+    >
+
+    <button type="button" onclick="checkPassword()">
+      Masuk
+    </button>
+
+    <div id="login-error">
+      Password salah
+    </div>
   </div>
-  <img src="logo-kanan.png" class="logo">
-</div>
 
-<div class="main">
-
-<div class="filters">
-
-<h4>Confidence Level</h4>
-<label><input type="checkbox" class="confidence-filter" value="medium" checked> 🟡 Medium</label>
-<label><input type="checkbox" class="confidence-filter" value="high" checked> 🔴 High</label>
-
-<h4>Tanggal</h4>
-<div id="tanggal-filter">Memuat...</div>
-
-<h4>Sumber</h4>
-<div id="sumber-filter">Memuat...</div>
-
-<h4>Layer Tambahan</h4>
-<label><input type="checkbox" id="pbph-toggle"> PBPH (garis biru)</label>
-<label><input type="checkbox" id="kebun-toggle"> Kebun (garis hijau)</label>
-<label><input type="checkbox" id="gambut-toggle"> Gambut (garis coklat)</label>
-
-<h4>Download Data</h4>
-
-<div class="dropdown">
-<button class="export-button">⬇️ Pilih Format</button>
-<div class="dropdown-content">
-<a href="#" onclick="exportTable('csv')">📄 CSV</a>
-<a href="#" onclick="exportTable('xlsx')">📄 XLSX</a>
-<a href="#" onclick="exportTable('pdf')">📄 PDF</a>
-</div>
-</div>
-
-<button class="export-button" onclick="window.print()">🖨️ Cetak Peta</button>
-
-<!-- TAMBAHAN -->
-<button class="export-button" onclick="exportPerusahaanPDF('pbph')">📄 PDF Hotspot PBPH</button>
-<button class="export-button" onclick="exportPerusahaanPDF('kebun')">📄 PDF Hotspot Kebun</button>
-
-</div>
-
-<div id="map"></div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script>
-
-const map = L.map('map',{attributionControl:false}).setView([-2.5,117],5);
-
-L.tileLayer(
-'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-{maxZoom:18}).addTo(map);
-
-const hotspotLayer=L.layerGroup().addTo(map);
-
-fetch('provinsi.geojson')
-.then(res=>res.json())
-.then(geo=>{
-L.geoJSON(geo,{style:{color:"black",weight:1,fillOpacity:0}}).addTo(map);
-});
-
-let pbphLayer=null;
-fetch('PBPH.geojson')
-.then(res=>res.json())
-.then(geo=>{
-pbphLayer=L.geoJSON(geo,{style:{color:"blue",weight:1,fillOpacity:0}});
-});
-
-let kebunLayer=null;
-fetch('kebun.geojson')
-.then(res=>res.json())
-.then(geo=>{
-kebunLayer=L.geoJSON(geo,{style:{color:"green",weight:2,fillOpacity:0.1}});
-});
-
-let gambutLayer=null;
-fetch('gambut.geojson')
-.then(res=>res.json())
-.then(geo=>{
-gambutLayer=L.geoJSON(geo,{style:{color:"brown",weight:2,fillOpacity:0.1}});
-});
-
-document.getElementById('pbph-toggle').addEventListener('change',function(){
-if(this.checked&&pbphLayer){pbphLayer.addTo(map);}else if(pbphLayer){map.removeLayer(pbphLayer);}
-});
-
-document.getElementById('kebun-toggle').addEventListener('change',function(){
-if(this.checked&&kebunLayer){kebunLayer.addTo(map);}else if(kebunLayer){map.removeLayer(kebunLayer);}
-});
-
-document.getElementById('gambut-toggle').addEventListener('change',function(){
-if(this.checked&&gambutLayer){gambutLayer.addTo(map);}else if(gambutLayer){map.removeLayer(gambutLayer);}
-});
-
-const url="https://opensheet.elk.sh/1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/Data%20Hotspot%20Nasional";
-
-let rawData=[];
-
-function getLastThreeDates(){
-const options={day:'2-digit',month:'long',year:'numeric'};
-const result=[];
-for(let i=0;i<3;i++){
-const date=new Date();
-date.setDate(date.getDate()-i);
-result.push(date.toLocaleDateString('id-ID',options));
-}
-return result;
-}
-
-function extractTanggal(t){
-const parts=t.split(',')[1]?.trim().split(' ')||[];
-return parts.slice(0,3).join(' ');
-}
-
-function renderFilterTanggal(){
-const div=document.getElementById("tanggal-filter");
-const list=getLastThreeDates();
-div.innerHTML="";
-list.forEach(t=>{
-div.innerHTML+=`<label><input type="checkbox" class="tanggal-filter" value="${t}" checked> ${t}</label>`;
-});
-}
-
-function renderFilterSumber(data){
-const sumberSet=new Set();
-data.forEach(r=>{if(r.Sumber)sumberSet.add(r.Sumber.trim());});
-const div=document.getElementById("sumber-filter");
-div.innerHTML="";
-Array.from(sumberSet).sort().forEach(src=>{
-div.innerHTML+=`<label><input type="checkbox" class="sumber-filter" value="${src}" checked> ${src}</label>`;
-});
-}
-
-function getSelectedFilters(){
-const levels=[...document.querySelectorAll('.confidence-filter:checked')].map(cb=>cb.value);
-const tanggal=[...document.querySelectorAll('.tanggal-filter:checked')].map(cb=>cb.value);
-const sumber=[...document.querySelectorAll('.sumber-filter:checked')].map(cb=>cb.value);
-return{levels,tanggal,sumber};
-}
-
-function applyFilters(){
-const{levels,tanggal,sumber}=getSelectedFilters();
-hotspotLayer.clearLayers();
-
-rawData.forEach(row=>{
-const lat=parseFloat(row.Latitude);
-const lon=parseFloat(row.Longitude);
-const conf=row.Confidence_Level?.toLowerCase();
-const waktu=row["Tanggal & Jam"]||"";
-const tanggalOnly=extractTanggal(waktu);
-const sumberVal=row.Sumber?.trim()||"";
-
-if(!isNaN(lat)&&!isNaN(lon)&&levels.includes(conf)&&tanggal.includes(tanggalOnly)&&sumber.includes(sumberVal)){
-
-const color=conf==='high'?'red':'yellow';
-
-L.circleMarker([lat,lon],{
-radius:6,
-fillColor:color,
-color:'#000',
-weight:1,
-opacity:0.5,
-fillOpacity:0.5
-}).addTo(hotspotLayer).bindPopup(
-`<b>${waktu}</b><br>
-${row.Provinsi} - ${row["Kab/Kota"]}<br>
-Confidence: ${conf}<br>
-Sumber: ${sumberVal}<br>
-Koordinat: ${lat.toFixed(4)}, ${lon.toFixed(4)}`
-);
-
-}
-});
-}
-
-function fetchAndRenderData(){
-fetch(url)
-.then(res=>res.json())
-.then(data=>{
-rawData=data;
-renderFilterTanggal();
-renderFilterSumber(data);
-applyFilters();
-
-document.querySelectorAll('.filters input[type=checkbox]').forEach(cb=>{
-cb.addEventListener('change',applyFilters);
-});
-});
-}
-
-function exportTable(format){
-
-const{levels,tanggal,sumber}=getSelectedFilters();
-
-const filtered=rawData.filter(row=>{
-const conf=row.Confidence_Level?.toLowerCase();
-const tgl=extractTanggal(row["Tanggal & Jam"]||"");
-const sumberVal=row.Sumber?.trim()||"";
-return levels.includes(conf)&&tanggal.includes(tgl)&&sumber.includes(sumberVal);
-});
-
-if(format==='csv'||format==='xlsx'){
-
-const ws=XLSX.utils.json_to_sheet(filtered);
-const wb=XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb,ws,"Hotspot");
-XLSX.writeFile(wb,`hotspot.${format}`);
-
-}
-
-else if(format==='pdf'){
-
-const{jsPDF}=window.jspdf;
-const doc=new jsPDF();
-
-const table=filtered.map(r=>[
-r["Tanggal & Jam"]||"",
-r.Provinsi,
-r["Kab/Kota"],
-r.Kecamatan,
-r.Desa,
-r.Latitude,
-r.Longitude,
-r.Confidence_Level,
-r.Sumber
-]);
-
-doc.autoTable({
-head:[['Tanggal & Jam','Provinsi','Kab/Kota','Kecamatan','Desa','Lat','Lng','Confidence','Sumber']],
-body:table,
-styles:{fontSize:8}
-});
-
-doc.save("hotspot.pdf");
-
-}
-
-}
-
-/* TAMBAHAN EXPORT PERUSAHAAN */
-
-function exportPerusahaanPDF(type){
-
-if(!pbphLayer&&type==='pbph'){alert("Layer PBPH belum aktif");return;}
-if(!kebunLayer&&type==='kebun'){alert("Layer Kebun belum aktif");return;}
-
-const{levels,tanggal,sumber}=getSelectedFilters();
-
-const filtered=rawData.filter(row=>{
-const conf=row.Confidence_Level?.toLowerCase();
-const tgl=extractTanggal(row["Tanggal & Jam"]||"");
-const sumberVal=row.Sumber?.trim()||"";
-return levels.includes(conf)&&tanggal.includes(tgl)&&sumber.includes(sumberVal);
-});
-
-const result={};
-
-filtered.forEach(row=>{
-
-const lat=parseFloat(row.Latitude);
-const lon=parseFloat(row.Longitude);
-if(isNaN(lat)||isNaN(lon))return;
-
-const point=turf.point([lon,lat]);
-const layer=type==='pbph'?pbphLayer:kebunLayer;
-
-layer.eachLayer(poly=>{
-
-const geo=poly.toGeoJSON();
-
-if(turf.booleanPointInPolygon(point,geo)){
-
-const nama=
-poly.feature.properties.NAMA||
-poly.feature.properties.NAMA_PERUSAHAAN||
-poly.feature.properties.COMPANY||
-"Tidak diketahui";
-
-if(!result[nama])result[nama]=0;
-result[nama]++;
-
-}
-
-});
-
-});
-
-const rows=Object.keys(result).map(n=>[n,result[n]]);
-
-const{jsPDF}=window.jspdf;
-const doc=new jsPDF();
-
-doc.text("Rekap Hotspot Perusahaan",14,10);
-
-doc.autoTable({
-head:[['Perusahaan','Jumlah Hotspot']],
-body:rows
-});
-
-doc.save("hotspot_perusahaan.pdf");
-
-}
-
-function checkPassword(){
-const input=document.getElementById('password-input').value;
-if(input==="karla"){
-localStorage.setItem("hotspot_logged_in","true");
-document.getElementById('login-overlay').style.display='none';
-init();
-}else{
-document.getElementById('login-error').style.display='block';
-}
-}
-
-function init(){
-fetchAndRenderData();
-}
-
-window.onload=()=>{
-const loggedIn=localStorage.getItem("hotspot_logged_in");
-if(loggedIn==="true"){
-document.getElementById('login-overlay').style.display='none';
-init();
-}
-};
-
-</script>
+  <div class="header">
+    <img
+      src="logo-kiri.png"
+      class="logo"
+      alt="Logo kiri"
+    >
+
+    <div class="title">
+      DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN
+      <br>
+      <small>
+        Peta Hotspot Level Confidence Medium–High selama 3 hari
+      </small>
+    </div>
+
+    <img
+      src="logo-kanan.png"
+      class="logo"
+      alt="Logo kanan"
+    >
+  </div>
+
+  <div class="main">
+
+    <div class="filters">
+
+      <h4>Confidence Level</h4>
+
+      <label>
+        <input
+          type="checkbox"
+          class="confidence-filter"
+          value="medium"
+          checked
+        >
+        🟡 Medium
+      </label>
+
+      <label>
+        <input
+          type="checkbox"
+          class="confidence-filter"
+          value="high"
+          checked
+        >
+        🔴 High
+      </label>
+
+      <h4>Tanggal</h4>
+
+      <div id="tanggal-filter" class="filter-message">
+        Memuat...
+      </div>
+
+      <h4>Sumber</h4>
+
+      <div id="sumber-filter" class="filter-message">
+        Memuat...
+      </div>
+
+      <h4>Layer Tambahan</h4>
+
+      <label>
+        <input type="checkbox" id="pbph-toggle">
+        PBPH (garis biru)
+      </label>
+
+      <label>
+        <input type="checkbox" id="kebun-toggle">
+        Kebun (garis hijau)
+      </label>
+
+      <label>
+        <input type="checkbox" id="gambut-toggle">
+        Gambut (garis coklat)
+      </label>
+
+      <h4>Download Data</h4>
+
+      <div class="dropdown">
+        <button type="button" class="export-button">
+          ⬇️ Pilih Format
+        </button>
+
+        <div class="dropdown-content">
+          <a href="#" onclick="exportTable('csv'); return false;">
+            📄 CSV
+          </a>
+
+          <a href="#" onclick="exportTable('xlsx'); return false;">
+            📄 XLSX
+          </a>
+
+          <a href="#" onclick="exportTable('pdf'); return false;">
+            📄 PDF
+          </a>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="export-button"
+        onclick="window.print()"
+      >
+        🖨️ Cetak Peta
+      </button>
+
+      <button
+        type="button"
+        class="export-button"
+        onclick="exportPerusahaanPDF('pbph')"
+      >
+        📄 PDF Hotspot PBPH
+      </button>
+
+      <button
+        type="button"
+        class="export-button"
+        onclick="exportPerusahaanPDF('kebun')"
+      >
+        📄 PDF Hotspot Kebun
+      </button>
+
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet JavaScript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    /*
+     * =========================================================
+     * KONFIGURASI
+     * =========================================================
+     */
+
+    const DATA_URL =
+      "https://opensheet.elk.sh/" +
+      "1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/" +
+      "Data%20Hotspot%20Nasional";
+
+    const PASSWORD = "karla";
+
+    const NAMA_BULAN = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember"
+    ];
+
+    /*
+     * =========================================================
+     * VARIABEL GLOBAL
+     * =========================================================
+     */
+
+    let rawData = [];
+
+    let pbphLayer = null;
+    let kebunLayer = null;
+    let gambutLayer = null;
+
+    let aplikasiSudahDimulai = false;
+    let filterListenerSudahDipasang = false;
+
+    /*
+     * =========================================================
+     * PETA
+     * =========================================================
+     */
+
+    const map = L.map("map", {
+      attributionControl: false
+    }).setView([-2.5, 117], 5);
+
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/" +
+      "World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 18
+      }
+    ).addTo(map);
+
+    const hotspotLayer = L.layerGroup().addTo(map);
+
+    /*
+     * =========================================================
+     * FUNGSI BANTUAN
+     * =========================================================
+     */
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatTanggalIndonesia(date) {
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        return "";
+      }
+
+      const tanggal = String(date.getDate()).padStart(2, "0");
+      const bulan = NAMA_BULAN[date.getMonth()];
+      const tahun = date.getFullYear();
+
+      return `${tanggal} ${bulan} ${tahun}`;
+    }
+
+    function extractTanggal(value) {
+      if (value === null || value === undefined) {
+        return "";
+      }
+
+      const text = String(value).trim();
+
+      if (!text) {
+        return "";
+      }
+
+      /*
+       * Format:
+       * Rabu, 26 Agustus 2026 15:30
+       * 26 Agustus 2026 15:30
+       */
+      const formatIndonesia = text.match(
+        /(\d{1,2})\s+(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+(\d{4})/i
+      );
+
+      if (formatIndonesia) {
+        const tanggal = String(
+          parseInt(formatIndonesia[1], 10)
+        ).padStart(2, "0");
+
+        const bulanIndex = NAMA_BULAN.findIndex(
+          bulan =>
+            bulan.toLowerCase() ===
+            formatIndonesia[2].toLowerCase()
+        );
+
+        if (bulanIndex >= 0) {
+          return (
+            `${tanggal} ` +
+            `${NAMA_BULAN[bulanIndex]} ` +
+            `${formatIndonesia[3]}`
+          );
+        }
+      }
+
+      /*
+       * Format:
+       * 2026-08-26
+       * 2026-08-26 15:30
+       * 2026-08-26T15:30:00
+       */
+      const formatISO = text.match(
+        /\b(\d{4})-(\d{1,2})-(\d{1,2})\b/
+      );
+
+      if (formatISO) {
+        const tahun = parseInt(formatISO[1], 10);
+        const bulan = parseInt(formatISO[2], 10);
+        const tanggal = parseInt(formatISO[3], 10);
+
+        if (
+          bulan >= 1 &&
+          bulan <= 12 &&
+          tanggal >= 1 &&
+          tanggal <= 31
+        ) {
+          return (
+            `${String(tanggal).padStart(2, "0")} ` +
+            `${NAMA_BULAN[bulan - 1]} ` +
+            `${tahun}`
+          );
+        }
+      }
+
+      /*
+       * Format:
+       * 26/08/2026
+       * 26-08-2026
+       */
+      const formatAngka = text.match(
+        /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/
+      );
+
+      if (formatAngka) {
+        const tanggal = parseInt(formatAngka[1], 10);
+        const bulan = parseInt(formatAngka[2], 10);
+        const tahun = parseInt(formatAngka[3], 10);
+
+        if (
+          bulan >= 1 &&
+          bulan <= 12 &&
+          tanggal >= 1 &&
+          tanggal <= 31
+        ) {
+          return (
+            `${String(tanggal).padStart(2, "0")} ` +
+            `${NAMA_BULAN[bulan - 1]} ` +
+            `${tahun}`
+          );
+        }
+      }
+
+      /*
+       * Percobaan terakhir memakai Date bawaan browser.
+       */
+      const parsedDate = new Date(text);
+
+      if (!isNaN(parsedDate.getTime())) {
+        return formatTanggalIndonesia(parsedDate);
+      }
+
+      return "";
+    }
+
+    function getLastThreeDates() {
+      const result = [];
+
+      for (let i = 0; i < 3; i++) {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - i);
+
+        result.push(formatTanggalIndonesia(date));
+      }
+
+      return result;
+    }
+
+    function ambilNilai(row, kemungkinanNama) {
+      for (const nama of kemungkinanNama) {
+        if (
+          Object.prototype.hasOwnProperty.call(row, nama) &&
+          row[nama] !== null &&
+          row[nama] !== undefined &&
+          String(row[nama]).trim() !== ""
+        ) {
+          return String(row[nama]).trim();
+        }
+      }
+
+      return "";
+    }
+
+    function ambilLatitude(row) {
+      return parseFloat(
+        ambilNilai(row, [
+          "Latitude",
+          "latitude",
+          "LATITUDE",
+          "Lat",
+          "lat"
+        ])
+      );
+    }
+
+    function ambilLongitude(row) {
+      return parseFloat(
+        ambilNilai(row, [
+          "Longitude",
+          "longitude",
+          "LONGITUDE",
+          "Lng",
+          "lng",
+          "Lon",
+          "lon"
+        ])
+      );
+    }
+
+    function ambilConfidence(row) {
+      return ambilNilai(row, [
+        "Confidence_Level",
+        "Confidence Level",
+        "confidence_level",
+        "confidence",
+        "Confidence"
+      ]).toLowerCase();
+    }
+
+    function ambilWaktu(row) {
+      return ambilNilai(row, [
+        "Tanggal & Jam",
+        "Tanggal dan Jam",
+        "Tanggal",
+        "tanggal",
+        "Date",
+        "date"
+      ]);
+    }
+
+    function ambilSumber(row) {
+      return ambilNilai(row, [
+        "Sumber",
+        "sumber",
+        "Source",
+        "source",
+        "Satelit",
+        "satelit"
+      ]);
+    }
+
+    async function fetchJson(url, namaData) {
+      const response = await fetch(url, {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `${namaData} gagal dimuat. HTTP ${response.status}`
+        );
+      }
+
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      if (
+        !contentType.includes("application/json") &&
+        !contentType.includes("geo+json")
+      ) {
+        const text = await response.text();
+
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          throw new Error(
+            `${namaData} bukan respons JSON yang valid`
+          );
+        }
+      }
+
+      return response.json();
+    }
+
+    /*
+     * =========================================================
+     * PEMUATAN GEOJSON
+     * =========================================================
+     */
+
+    async function loadProvinsi() {
+      try {
+        const geojson = await fetchJson(
+          "provinsi.geojson",
+          "Batas provinsi"
+        );
+
+        L.geoJSON(geojson, {
+          style: {
+            color: "black",
+            weight: 1,
+            fillOpacity: 0
+          }
+        }).addTo(map);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function loadPBPH() {
+      try {
+        const geojson = await fetchJson(
+          "PBPH.geojson",
+          "Layer PBPH"
+        );
+
+        pbphLayer = L.geoJSON(geojson, {
+          style: {
+            color: "blue",
+            weight: 1,
+            fillOpacity: 0
+          }
+        });
+
+        const toggle =
+          document.getElementById("pbph-toggle");
+
+        if (toggle.checked) {
+          pbphLayer.addTo(map);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function loadKebun() {
+      try {
+        const geojson = await fetchJson(
+          "kebun.geojson",
+          "Layer kebun"
+        );
+
+        kebunLayer = L.geoJSON(geojson, {
+          style: {
+            color: "green",
+            weight: 2,
+            fillOpacity: 0.1
+          }
+        });
+
+        const toggle =
+          document.getElementById("kebun-toggle");
+
+        if (toggle.checked) {
+          kebunLayer.addTo(map);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function loadGambut() {
+      try {
+        const geojson = await fetchJson(
+          "gambut.geojson",
+          "Layer gambut"
+        );
+
+        gambutLayer = L.geoJSON(geojson, {
+          style: {
+            color: "brown",
+            weight: 2,
+            fillOpacity: 0.1
+          }
+        });
+
+        const toggle =
+          document.getElementById("gambut-toggle");
+
+        if (toggle.checked) {
+          gambutLayer.addTo(map);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    function pasangLayerListeners() {
+      document
+        .getElementById("pbph-toggle")
+        .addEventListener("change", function () {
+          if (!pbphLayer) {
+            if (this.checked) {
+              alert(
+                "Layer PBPH belum selesai dimuat atau file " +
+                "PBPH.geojson tidak ditemukan."
+              );
+
+              this.checked = false;
+            }
+
+            return;
+          }
+
+          if (this.checked) {
+            pbphLayer.addTo(map);
+          } else {
+            map.removeLayer(pbphLayer);
+          }
+        });
+
+      document
+        .getElementById("kebun-toggle")
+        .addEventListener("change", function () {
+          if (!kebunLayer) {
+            if (this.checked) {
+              alert(
+                "Layer kebun belum selesai dimuat atau file " +
+                "kebun.geojson tidak ditemukan."
+              );
+
+              this.checked = false;
+            }
+
+            return;
+          }
+
+          if (this.checked) {
+            kebunLayer.addTo(map);
+          } else {
+            map.removeLayer(kebunLayer);
+          }
+        });
+
+      document
+        .getElementById("gambut-toggle")
+        .addEventListener("change", function () {
+          if (!gambutLayer) {
+            if (this.checked) {
+              alert(
+                "Layer gambut belum selesai dimuat atau file " +
+                "gambut.geojson tidak ditemukan."
+              );
+
+              this.checked = false;
+            }
+
+            return;
+          }
+
+          if (this.checked) {
+            gambutLayer.addTo(map);
+          } else {
+            map.removeLayer(gambutLayer);
+          }
+        });
+    }
+
+    /*
+     * =========================================================
+     * FILTER
+     * =========================================================
+     */
+
+    function renderFilterTanggal() {
+      const div =
+        document.getElementById("tanggal-filter");
+
+      const daftarTanggal = getLastThreeDates();
+
+      div.className = "";
+      div.innerHTML = daftarTanggal.map(tanggal => {
+        const tanggalAman = escapeHtml(tanggal);
+
+        return `
+          <label>
+            <input
+              type="checkbox"
+              class="tanggal-filter"
+              value="${tanggalAman}"
+              checked
+            >
+            ${tanggalAman}
+          </label>
+        `;
+      }).join("");
+    }
+
+    function renderFilterSumber(data) {
+      const sumberSet = new Set();
+
+      data.forEach(row => {
+        const sumber = ambilSumber(row);
+
+        if (sumber) {
+          sumberSet.add(sumber);
+        }
+      });
+
+      const div =
+        document.getElementById("sumber-filter");
+
+      const daftarSumber =
+        Array.from(sumberSet).sort((a, b) =>
+          a.localeCompare(b, "id")
+        );
+
+      if (daftarSumber.length === 0) {
+        div.className = "error-message";
+        div.textContent =
+          "Kolom Sumber tidak ditemukan atau datanya kosong.";
+
+        return;
+      }
+
+      div.className = "";
+      div.innerHTML = daftarSumber.map(sumber => {
+        const sumberAman = escapeHtml(sumber);
+
+        return `
+          <label>
+            <input
+              type="checkbox"
+              class="sumber-filter"
+              value="${sumberAman}"
+              checked
+            >
+            ${sumberAman}
+          </label>
+        `;
+      }).join("");
+    }
+
+    function getSelectedFilters() {
+      const levels = Array.from(
+        document.querySelectorAll(
+          ".confidence-filter:checked"
+        )
+      ).map(checkbox => checkbox.value.toLowerCase());
+
+      const tanggal = Array.from(
+        document.querySelectorAll(
+          ".tanggal-filter:checked"
+        )
+      ).map(checkbox => checkbox.value);
+
+      const sumber = Array.from(
+        document.querySelectorAll(
+          ".sumber-filter:checked"
+        )
+      ).map(checkbox => checkbox.value);
+
+      return {
+        levels,
+        tanggal,
+        sumber
+      };
+    }
+
+    function dataSesuaiFilter(row, filter) {
+      const confidence = ambilConfidence(row);
+      const waktu = ambilWaktu(row);
+      const tanggalData = extractTanggal(waktu);
+      const sumberData = ambilSumber(row);
+
+      return (
+        filter.levels.includes(confidence) &&
+        filter.tanggal.includes(tanggalData) &&
+        filter.sumber.includes(sumberData)
+      );
+    }
+
+    function getFilteredData() {
+      const filter = getSelectedFilters();
+
+      return rawData.filter(row =>
+        dataSesuaiFilter(row, filter)
+      );
+    }
+
+    function applyFilters() {
+      const filter = getSelectedFilters();
+
+      hotspotLayer.clearLayers();
+
+      let jumlahDitampilkan = 0;
+
+      rawData.forEach(row => {
+        if (!dataSesuaiFilter(row, filter)) {
+          return;
+        }
+
+        const latitude = ambilLatitude(row);
+        const longitude = ambilLongitude(row);
+
+        if (
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude)
+        ) {
+          return;
+        }
+
+        if (
+          latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180
+        ) {
+          return;
+        }
+
+        const confidence = ambilConfidence(row);
+        const waktu = ambilWaktu(row);
+        const sumber = ambilSumber(row);
+
+        const provinsi = ambilNilai(row, [
+          "Provinsi",
+          "provinsi",
+          "PROVINSI"
+        ]);
+
+        const kabupaten = ambilNilai(row, [
+          "Kab/Kota",
+          "Kabupaten/Kota",
+          "Kabupaten",
+          "kabupaten",
+          "Kota"
+        ]);
+
+        const kecamatan = ambilNilai(row, [
+          "Kecamatan",
+          "kecamatan"
+        ]);
+
+        const desa = ambilNilai(row, [
+          "Desa",
+          "desa",
+          "Kelurahan"
+        ]);
+
+        const warna =
+          confidence === "high" ? "red" : "yellow";
+
+        const popup = `
+          <b>${escapeHtml(waktu || "Tanggal tidak tersedia")}</b>
+          <br>
+          ${escapeHtml(provinsi || "-")} -
+          ${escapeHtml(kabupaten || "-")}
+          <br>
+          Kecamatan: ${escapeHtml(kecamatan || "-")}
+          <br>
+          Desa: ${escapeHtml(desa || "-")}
+          <br>
+          Confidence: ${escapeHtml(confidence || "-")}
+          <br>
+          Sumber: ${escapeHtml(sumber || "-")}
+          <br>
+          Koordinat:
+          ${latitude.toFixed(4)},
+          ${longitude.toFixed(4)}
+        `;
+
+        L.circleMarker(
+          [latitude, longitude],
+          {
+            radius: 6,
+            fillColor: warna,
+            color: "#000",
+            weight: 1,
+            opacity: 0.8,
+            fillOpacity: 0.65
+          }
+        )
+          .addTo(hotspotLayer)
+          .bindPopup(popup);
+
+        jumlahDitampilkan++;
+      });
+
+      console.log(
+        `Hotspot ditampilkan: ${jumlahDitampilkan} ` +
+        `dari ${rawData.length} data`
+      );
+    }
+
+    function pasangFilterListeners() {
+      if (filterListenerSudahDipasang) {
+        return;
+      }
+
+      document.addEventListener("change", event => {
+        if (
+          event.target.matches(".confidence-filter") ||
+          event.target.matches(".tanggal-filter") ||
+          event.target.matches(".sumber-filter")
+        ) {
+          applyFilters();
+        }
+      });
+
+      filterListenerSudahDipasang = true;
+    }
+
+    /*
+     * =========================================================
+     * AMBIL DATA HOTSPOT
+     * =========================================================
+     */
+
+    async function fetchAndRenderData() {
+      const tanggalDiv =
+        document.getElementById("tanggal-filter");
+
+      const sumberDiv =
+        document.getElementById("sumber-filter");
+
+      tanggalDiv.className = "filter-message";
+      tanggalDiv.textContent = "Memuat...";
+
+      sumberDiv.className = "filter-message";
+      sumberDiv.textContent = "Memuat...";
+
+      try {
+        const data = await fetchJson(
+          DATA_URL,
+          "Data hotspot"
+        );
+
+        if (!Array.isArray(data)) {
+          throw new Error(
+            "Respons data hotspot bukan berupa array."
+          );
+        }
+
+        rawData = data;
+
+        renderFilterTanggal();
+        renderFilterSumber(rawData);
+        pasangFilterListeners();
+        applyFilters();
+
+        if (rawData.length === 0) {
+          console.warn(
+            "API berhasil dipanggil, tetapi tidak ada data."
+          );
+        }
+      } catch (error) {
+        console.error("Gagal memuat data hotspot:", error);
+
+        rawData = [];
+        hotspotLayer.clearLayers();
+
+        tanggalDiv.className = "error-message";
+        tanggalDiv.textContent =
+          "Tanggal gagal dimuat.";
+
+        sumberDiv.className = "error-message";
+        sumberDiv.textContent =
+          "Data hotspot gagal dimuat.";
+
+        alert(
+          "Data hotspot gagal dimuat.\n\n" +
+          error.message +
+          "\n\nPeriksa koneksi internet dan alamat API."
+        );
+      }
+    }
+
+    /*
+     * =========================================================
+     * EKSPOR DATA
+     * =========================================================
+     */
+
+    function buatDataEkspor(filtered) {
+      return filtered.map(row => ({
+        "Tanggal & Jam": ambilWaktu(row),
+        "Provinsi": ambilNilai(row, [
+          "Provinsi",
+          "provinsi"
+        ]),
+        "Kab/Kota": ambilNilai(row, [
+          "Kab/Kota",
+          "Kabupaten/Kota",
+          "Kabupaten",
+          "Kota"
+        ]),
+        "Kecamatan": ambilNilai(row, [
+          "Kecamatan",
+          "kecamatan"
+        ]),
+        "Desa": ambilNilai(row, [
+          "Desa",
+          "desa",
+          "Kelurahan"
+        ]),
+        "Latitude": ambilLatitude(row),
+        "Longitude": ambilLongitude(row),
+        "Confidence": ambilConfidence(row),
+        "Sumber": ambilSumber(row)
+      }));
+    }
+
+    function exportTable(format) {
+      const filtered = getFilteredData();
+
+      if (filtered.length === 0) {
+        alert(
+          "Tidak ada data yang sesuai dengan filter."
+        );
+
+        return;
+      }
+
+      const dataEkspor = buatDataEkspor(filtered);
+
+      if (format === "csv") {
+        const worksheet =
+          XLSX.utils.json_to_sheet(dataEkspor);
+
+        const csv = XLSX.utils.sheet_to_csv(
+          worksheet,
+          {
+            FS: ";"
+          }
+        );
+
+        const blob = new Blob(
+          ["\uFEFF" + csv],
+          {
+            type: "text/csv;charset=utf-8;"
+          }
+        );
+
+        const link = document.createElement("a");
+        const objectUrl = URL.createObjectURL(blob);
+
+        link.href = objectUrl;
+        link.download = "hotspot.csv";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(objectUrl);
+
+        return;
+      }
+
+      if (format === "xlsx") {
+        const worksheet =
+          XLSX.utils.json_to_sheet(dataEkspor);
+
+        const workbook =
+          XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(
+          workbook,
+          worksheet,
+          "Hotspot"
+        );
+
+        XLSX.writeFile(
+          workbook,
+          "hotspot.xlsx"
+        );
+
+        return;
+      }
+
+      if (format === "pdf") {
+        const { jsPDF } = window.jspdf;
+
+        const documentPdf = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4"
+        });
+
+        const table = dataEkspor.map(row => [
+          row["Tanggal & Jam"],
+          row["Provinsi"],
+          row["Kab/Kota"],
+          row["Kecamatan"],
+          row["Desa"],
+          Number.isFinite(row["Latitude"])
+            ? row["Latitude"].toFixed(5)
+            : "",
+          Number.isFinite(row["Longitude"])
+            ? row["Longitude"].toFixed(5)
+            : "",
+          row["Confidence"],
+          row["Sumber"]
+        ]);
+
+        documentPdf.setFontSize(13);
+        documentPdf.text(
+          "Data Hotspot",
+          14,
+          12
+        );
+
+        documentPdf.autoTable({
+          startY: 17,
+          head: [[
+            "Tanggal & Jam",
+            "Provinsi",
+            "Kab/Kota",
+            "Kecamatan",
+            "Desa",
+            "Latitude",
+            "Longitude",
+            "Confidence",
+            "Sumber"
+          ]],
+          body: table,
+          styles: {
+            fontSize: 7,
+            cellPadding: 1.5
+          },
+          headStyles: {
+            fillColor: [68, 68, 68]
+          }
+        });
+
+        documentPdf.save("hotspot.pdf");
+      }
+    }
+
+    /*
+     * =========================================================
+     * CEK HOTSPOT DALAM POLYGON PERUSAHAAN
+     * =========================================================
+     */
+
+    function cariNamaPerusahaan(properties) {
+      if (!properties) {
+        return "Tidak diketahui";
+      }
+
+      const kemungkinanKolom = [
+        "NAMA",
+        "Nama",
+        "nama",
+        "NAMA_PERUSAHAAN",
+        "Nama_Perusahaan",
+        "nama_perusahaan",
+        "PERUSAHAAN",
+        "Perusahaan",
+        "COMPANY",
+        "Company",
+        "PEMEGANG",
+        "NAMOBJ"
+      ];
+
+      for (const kolom of kemungkinanKolom) {
+        if (
+          properties[kolom] !== null &&
+          properties[kolom] !== undefined &&
+          String(properties[kolom]).trim() !== ""
+        ) {
+          return String(properties[kolom]).trim();
+        }
+      }
+
+      return "Tidak diketahui";
+    }
+
+    function pointAdaDalamGeoJson(point, geojson) {
+      if (!geojson || !geojson.geometry) {
+        return false;
+      }
+
+      const geometryType = geojson.geometry.type;
+
+      if (
+        geometryType === "Polygon" ||
+        geometryType === "MultiPolygon"
+      ) {
+        try {
+          return turf.booleanPointInPolygon(
+            point,
+            geojson
+          );
+        } catch (error) {
+          console.warn(
+            "Polygon tidak dapat diperiksa:",
+            error
+          );
+
+          return false;
+        }
+      }
+
+      return false;
+    }
+
+    function exportPerusahaanPDF(type) {
+      const layer =
+        type === "pbph"
+          ? pbphLayer
+          : kebunLayer;
+
+      const namaLayer =
+        type === "pbph"
+          ? "PBPH"
+          : "Kebun";
+
+      if (!layer) {
+        alert(
+          `Layer ${namaLayer} belum selesai dimuat ` +
+          "atau file GeoJSON tidak ditemukan."
+        );
+
+        return;
+      }
+
+      const filtered = getFilteredData();
+
+      if (filtered.length === 0) {
+        alert(
+          "Tidak ada data hotspot yang sesuai dengan filter."
+        );
+
+        return;
+      }
+
+      const result = {};
+      let jumlahHotspotDalamPolygon = 0;
+
+      filtered.forEach(row => {
+        const latitude = ambilLatitude(row);
+        const longitude = ambilLongitude(row);
+
+        if (
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude)
+        ) {
+          return;
+        }
+
+        const point = turf.point([
+          longitude,
+          latitude
+        ]);
+
+        layer.eachLayer(polygonLayer => {
+          if (
+            !polygonLayer ||
+            typeof polygonLayer.toGeoJSON !== "function"
+          ) {
+            return;
+          }
+
+          const geojson =
+            polygonLayer.toGeoJSON();
+
+          if (
+            !pointAdaDalamGeoJson(point, geojson)
+          ) {
+            return;
+          }
+
+          const properties =
+            polygonLayer.feature?.properties ||
+            geojson.properties ||
+            {};
+
+          const namaPerusahaan =
+            cariNamaPerusahaan(properties);
+
+          if (!result[namaPerusahaan]) {
+            result[namaPerusahaan] = 0;
+          }
+
+          result[namaPerusahaan]++;
+          jumlahHotspotDalamPolygon++;
+        });
+      });
+
+      const rows = Object.entries(result)
+        .sort((a, b) => b[1] - a[1])
+        .map(([nama, jumlah], index) => [
+          index + 1,
+          nama,
+          jumlah
+        ]);
+
+      if (rows.length === 0) {
+        alert(
+          `Tidak ditemukan hotspot di dalam polygon ${namaLayer}.`
+        );
+
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+
+      const documentPdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      documentPdf.setFontSize(14);
+      documentPdf.text(
+        `Rekap Hotspot Perusahaan ${namaLayer}`,
+        14,
+        15
+      );
+
+      documentPdf.setFontSize(10);
+      documentPdf.text(
+        `Jumlah hotspot dalam polygon: ` +
+        `${jumlahHotspotDalamPolygon}`,
+        14,
+        22
+      );
+
+      documentPdf.autoTable({
+        startY: 27,
+        head: [[
+          "No.",
+          "Perusahaan",
+          "Jumlah Hotspot"
+        ]],
+        body: rows,
+        styles: {
+          fontSize: 9
+        },
+        headStyles: {
+          fillColor:
+            type === "pbph"
+              ? [30, 90, 180]
+              : [30, 130, 70]
+        },
+        columnStyles: {
+          0: {
+            cellWidth: 15,
+            halign: "center"
+          },
+          2: {
+            cellWidth: 35,
+            halign: "center"
+          }
+        }
+      });
+
+      documentPdf.save(
+        `hotspot_perusahaan_${type}.pdf`
+      );
+    }
+
+    /*
+     * =========================================================
+     * LOGIN DAN INISIALISASI
+     * =========================================================
+     */
+
+    function checkPassword() {
+      const input =
+        document.getElementById("password-input");
+
+      const errorElement =
+        document.getElementById("login-error");
+
+      if (input.value === PASSWORD) {
+        localStorage.setItem(
+          "hotspot_logged_in",
+          "true"
+        );
+
+        errorElement.style.display = "none";
+
+        document.getElementById(
+          "login-overlay"
+        ).style.display = "none";
+
+        init();
+      } else {
+        errorElement.style.display = "block";
+        input.focus();
+        input.select();
+      }
+    }
+
+    function init() {
+      if (aplikasiSudahDimulai) {
+        return;
+      }
+
+      aplikasiSudahDimulai = true;
+
+      pasangLayerListeners();
+
+      Promise.allSettled([
+        loadProvinsi(),
+        loadPBPH(),
+        loadKebun(),
+        loadGambut()
+      ]);
+
+      fetchAndRenderData();
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+    }
+
+    document
+      .getElementById("password-input")
+      .addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          checkPassword();
+        }
+      });
+
+    window.addEventListener("load", () => {
+      const loggedIn =
+        localStorage.getItem("hotspot_logged_in");
+
+      if (loggedIn === "true") {
+        document.getElementById(
+          "login-overlay"
+        ).style.display = "none";
+
+        init();
+      } else {
+        document
+          .getElementById("password-input")
+          .focus();
+      }
+    });
+  </script>
 
 </body>
 </html>
