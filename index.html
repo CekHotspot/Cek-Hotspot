@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -89,7 +90,7 @@
       padding: 10px;
       overflow-y: auto;
       transform: translateY(-50%);
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.96);
       border-radius: 6px;
       box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
       font-size: 13px;
@@ -122,6 +123,17 @@
       line-height: 1.4;
     }
 
+    #jumlah-hotspot {
+      margin-top: 8px;
+      padding: 6px;
+      background-color: #eef5ff;
+      border-radius: 4px;
+      color: #174a80;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+    }
+
     .export-button {
       width: 100%;
       margin-top: 4px;
@@ -136,6 +148,11 @@
 
     .export-button:hover {
       background-color: #222;
+    }
+
+    .export-button:disabled {
+      background-color: #999;
+      cursor: wait;
     }
 
     .dropdown {
@@ -324,10 +341,42 @@
         Memuat...
       </div>
 
-      <h4>Sumber Citra</h4>
+      <h4>Sumber Satelit</h4>
 
-      <div id="sumber-filter" class="filter-message">
-        Memuat...
+      <div id="sumber-filter">
+        <label>
+          <input
+            type="checkbox"
+            class="sumber-filter"
+            value="NASA-MODIS"
+            checked
+          >
+          NASA-MODIS
+        </label>
+
+        <label>
+          <input
+            type="checkbox"
+            class="sumber-filter"
+            value="NASA-NOAA20"
+            checked
+          >
+          NASA-NOAA20
+        </label>
+
+        <label>
+          <input
+            type="checkbox"
+            class="sumber-filter"
+            value="NASA-SNPP"
+            checked
+          >
+          NASA-SNPP
+        </label>
+      </div>
+
+      <div id="jumlah-hotspot">
+        Memuat hotspot...
       </div>
 
       <h4>Layer Tambahan</h4>
@@ -411,9 +460,9 @@
 
   <script>
     /*
-     * =====================================================
+     * ======================================================
      * KONFIGURASI
-     * =====================================================
+     * ======================================================
      */
 
     const DATA_URL =
@@ -445,9 +494,9 @@
     ];
 
     /*
-     * =====================================================
-     * VARIABEL GLOBAL
-     * =====================================================
+     * ======================================================
+     * VARIABEL
+     * ======================================================
      */
 
     let rawData = [];
@@ -455,34 +504,51 @@
     let pbphLayer = null;
     let kebunLayer = null;
     let gambutLayer = null;
+    let provinsiLayer = null;
+
+    let pbphSedangDimuat = false;
+    let kebunSedangDimuat = false;
+    let gambutSedangDimuat = false;
 
     let aplikasiSudahDimulai = false;
     let filterListenerSudahDipasang = false;
 
     /*
-     * =====================================================
+     * ======================================================
      * PETA
-     * =====================================================
+     * ======================================================
      */
 
+    /*
+     * preferCanvas membuat ribuan circleMarker lebih ringan
+     * dibandingkan menggunakan SVG.
+     */
     const map = L.map("map", {
-      attributionControl: false
+      attributionControl: false,
+      preferCanvas: true
     }).setView([-2.5, 117], 5);
 
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/" +
       "World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
-        maxZoom: 18
+        maxZoom: 18,
+        updateWhenIdle: true,
+        keepBuffer: 2
       }
     ).addTo(map);
 
-    const hotspotLayer = L.layerGroup().addTo(map);
+    const hotspotRenderer = L.canvas({
+      padding: 0.5
+    });
+
+    const hotspotLayer =
+      L.layerGroup().addTo(map);
 
     /*
-     * =====================================================
+     * ======================================================
      * FUNGSI BANTUAN
-     * =====================================================
+     * ======================================================
      */
 
     function escapeHtml(value) {
@@ -494,8 +560,8 @@
         .replaceAll("'", "&#039;");
     }
 
-    function ambilNilai(row, kemungkinanNama) {
-      for (const nama of kemungkinanNama) {
+    function ambilNilai(row, daftarNama) {
+      for (const nama of daftarNama) {
         if (
           Object.prototype.hasOwnProperty.call(row, nama) &&
           row[nama] !== null &&
@@ -510,15 +576,10 @@
     }
 
     function normalisasiSumber(value) {
-      const asli = String(value || "")
+      const kode = String(value || "")
         .trim()
-        .toUpperCase();
-
-      /*
-       * Menghilangkan spasi dan tanda pemisah supaya
-       * variasi penulisan tetap dapat dikenali.
-       */
-      const kode = asli.replace(/[^A-Z0-9]/g, "");
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
 
       const mapping = {
         "NASAMODIS": "NASA-MODIS",
@@ -556,36 +617,40 @@
     }
 
     function ambilLatitude(row) {
+      const value = ambilNilai(row, [
+        "Latitude",
+        "latitude",
+        "LATITUDE",
+        "Lat",
+        "lat",
+        "LAT"
+      ]);
+
       return parseFloat(
-        ambilNilai(row, [
-          "Latitude",
-          "latitude",
-          "LATITUDE",
-          "Lat",
-          "lat",
-          "LAT"
-        ])
+        String(value).replace(",", ".")
       );
     }
 
     function ambilLongitude(row) {
+      const value = ambilNilai(row, [
+        "Longitude",
+        "longitude",
+        "LONGITUDE",
+        "Lng",
+        "lng",
+        "LNG",
+        "Lon",
+        "lon",
+        "LON"
+      ]);
+
       return parseFloat(
-        ambilNilai(row, [
-          "Longitude",
-          "longitude",
-          "LONGITUDE",
-          "Lng",
-          "lng",
-          "LNG",
-          "Lon",
-          "lon",
-          "LON"
-        ])
+        String(value).replace(",", ".")
       );
     }
 
     function ambilConfidence(row) {
-      const nilai = ambilNilai(row, [
+      return ambilNilai(row, [
         "Confidence_Level",
         "Confidence Level",
         "confidence_level",
@@ -593,9 +658,7 @@
         "Confidence",
         "confidence",
         "CONFIDENCE"
-      ]);
-
-      return String(nilai).trim().toLowerCase();
+      ]).toLowerCase();
     }
 
     function ambilWaktu(row) {
@@ -650,7 +713,7 @@
       }
 
       /*
-       * Format:
+       * Contoh:
        * Rabu, 26 Agustus 2026 15:30
        * 26 Agustus 2026 15:30
        */
@@ -680,10 +743,9 @@
       }
 
       /*
-       * Format:
+       * Contoh:
        * 2026-08-26
        * 2026-08-26 15:30
-       * 2026-08-26T15:30:00
        */
       const formatISO = text.match(
         /\b(\d{4})-(\d{1,2})-(\d{1,2})\b/
@@ -714,7 +776,7 @@
       }
 
       /*
-       * Format:
+       * Contoh:
        * 26/08/2026
        * 26-08-2026
        */
@@ -746,14 +808,13 @@
         }
       }
 
-      /*
-       * Percobaan terakhir menggunakan Date browser.
-       */
       const hasilDate =
         new Date(text);
 
       if (!isNaN(hasilDate.getTime())) {
-        return formatTanggalIndonesia(hasilDate);
+        return formatTanggalIndonesia(
+          hasilDate
+        );
       }
 
       return "";
@@ -787,7 +848,8 @@
         );
       }
 
-      const text = await response.text();
+      const text =
+        await response.text();
 
       try {
         return JSON.parse(text);
@@ -799,185 +861,299 @@
     }
 
     /*
-     * =====================================================
-     * LAYER GEOJSON
-     * =====================================================
+     * ======================================================
+     * BATAS PROVINSI
+     * ======================================================
      */
 
     async function loadProvinsi() {
+      if (provinsiLayer) {
+        return provinsiLayer;
+      }
+
       try {
         const geojson = await fetchJson(
           "provinsi.geojson",
           "Batas provinsi"
         );
 
-        L.geoJSON(geojson, {
-          style: {
-            color: "black",
-            weight: 1,
-            fillOpacity: 0
+        provinsiLayer = L.geoJSON(
+          geojson,
+          {
+            style: {
+              color: "black",
+              weight: 1,
+              fillOpacity: 0
+            }
           }
-        }).addTo(map);
+        ).addTo(map);
+
+        return provinsiLayer;
       } catch (error) {
         console.error(error);
+        return null;
       }
     }
 
+    /*
+     * ======================================================
+     * LAZY LOAD PBPH
+     * ======================================================
+     */
+
     async function loadPBPH() {
+      if (pbphLayer) {
+        return pbphLayer;
+      }
+
+      if (pbphSedangDimuat) {
+        return null;
+      }
+
+      pbphSedangDimuat = true;
+
       try {
         const geojson = await fetchJson(
           "PBPH.geojson",
           "Layer PBPH"
         );
 
-        pbphLayer = L.geoJSON(geojson, {
-          style: {
-            color: "blue",
-            weight: 1,
-            fillOpacity: 0
+        pbphLayer = L.geoJSON(
+          geojson,
+          {
+            style: {
+              color: "blue",
+              weight: 1,
+              fillOpacity: 0
+            }
           }
-        });
+        );
 
-        if (
-          document.getElementById("pbph-toggle").checked
-        ) {
-          pbphLayer.addTo(map);
-        }
+        return pbphLayer;
       } catch (error) {
         console.error(error);
+
+        alert(
+          "Layer PBPH gagal dimuat.\n\n" +
+          error.message
+        );
+
+        return null;
+      } finally {
+        pbphSedangDimuat = false;
       }
     }
 
+    /*
+     * ======================================================
+     * LAZY LOAD KEBUN
+     * ======================================================
+     */
+
     async function loadKebun() {
+      if (kebunLayer) {
+        return kebunLayer;
+      }
+
+      if (kebunSedangDimuat) {
+        return null;
+      }
+
+      kebunSedangDimuat = true;
+
       try {
         const geojson = await fetchJson(
           "kebun.geojson",
           "Layer kebun"
         );
 
-        kebunLayer = L.geoJSON(geojson, {
-          style: {
-            color: "green",
-            weight: 2,
-            fillOpacity: 0.1
+        kebunLayer = L.geoJSON(
+          geojson,
+          {
+            style: {
+              color: "green",
+              weight: 2,
+              fillOpacity: 0.1
+            }
           }
-        });
+        );
 
-        if (
-          document.getElementById("kebun-toggle").checked
-        ) {
-          kebunLayer.addTo(map);
-        }
+        return kebunLayer;
       } catch (error) {
         console.error(error);
+
+        alert(
+          "Layer kebun gagal dimuat.\n\n" +
+          error.message
+        );
+
+        return null;
+      } finally {
+        kebunSedangDimuat = false;
       }
     }
 
+    /*
+     * ======================================================
+     * LAZY LOAD GAMBUT
+     * ======================================================
+     */
+
     async function loadGambut() {
+      if (gambutLayer) {
+        return gambutLayer;
+      }
+
+      if (gambutSedangDimuat) {
+        return null;
+      }
+
+      gambutSedangDimuat = true;
+
       try {
         const geojson = await fetchJson(
           "gambut.geojson",
           "Layer gambut"
         );
 
-        gambutLayer = L.geoJSON(geojson, {
-          style: {
-            color: "brown",
-            weight: 2,
-            fillOpacity: 0.1
+        gambutLayer = L.geoJSON(
+          geojson,
+          {
+            style: {
+              color: "brown",
+              weight: 2,
+              fillOpacity: 0.1
+            }
           }
-        });
+        );
 
-        if (
-          document.getElementById("gambut-toggle").checked
-        ) {
-          gambutLayer.addTo(map);
-        }
+        return gambutLayer;
       } catch (error) {
         console.error(error);
+
+        alert(
+          "Layer gambut gagal dimuat.\n\n" +
+          error.message
+        );
+
+        return null;
+      } finally {
+        gambutSedangDimuat = false;
       }
     }
 
+    /*
+     * ======================================================
+     * LISTENER LAYER TAMBAHAN
+     * ======================================================
+     */
+
     function pasangLayerListeners() {
-      document
-        .getElementById("pbph-toggle")
-        .addEventListener("change", function () {
-          if (!pbphLayer) {
-            if (this.checked) {
-              alert(
-                "Layer PBPH belum selesai dimuat atau " +
-                "file PBPH.geojson tidak ditemukan."
-              );
+      const pbphToggle =
+        document.getElementById("pbph-toggle");
 
-              this.checked = false;
+      const kebunToggle =
+        document.getElementById("kebun-toggle");
+
+      const gambutToggle =
+        document.getElementById("gambut-toggle");
+
+      pbphToggle.addEventListener(
+        "change",
+        async function () {
+          if (!this.checked) {
+            if (pbphLayer) {
+              map.removeLayer(pbphLayer);
             }
 
             return;
           }
 
-          if (this.checked) {
-            pbphLayer.addTo(map);
-          } else {
-            map.removeLayer(pbphLayer);
+          this.disabled = true;
+
+          const layer =
+            await loadPBPH();
+
+          this.disabled = false;
+
+          if (layer && this.checked) {
+            layer.addTo(map);
           }
-        });
 
-      document
-        .getElementById("kebun-toggle")
-        .addEventListener("change", function () {
-          if (!kebunLayer) {
-            if (this.checked) {
-              alert(
-                "Layer kebun belum selesai dimuat atau " +
-                "file kebun.geojson tidak ditemukan."
-              );
+          if (!layer) {
+            this.checked = false;
+          }
+        }
+      );
 
-              this.checked = false;
+      kebunToggle.addEventListener(
+        "change",
+        async function () {
+          if (!this.checked) {
+            if (kebunLayer) {
+              map.removeLayer(kebunLayer);
             }
 
             return;
           }
 
-          if (this.checked) {
-            kebunLayer.addTo(map);
-          } else {
-            map.removeLayer(kebunLayer);
+          this.disabled = true;
+
+          const layer =
+            await loadKebun();
+
+          this.disabled = false;
+
+          if (layer && this.checked) {
+            layer.addTo(map);
           }
-        });
 
-      document
-        .getElementById("gambut-toggle")
-        .addEventListener("change", function () {
-          if (!gambutLayer) {
-            if (this.checked) {
-              alert(
-                "Layer gambut belum selesai dimuat atau " +
-                "file gambut.geojson tidak ditemukan."
-              );
+          if (!layer) {
+            this.checked = false;
+          }
+        }
+      );
 
-              this.checked = false;
+      gambutToggle.addEventListener(
+        "change",
+        async function () {
+          if (!this.checked) {
+            if (gambutLayer) {
+              map.removeLayer(gambutLayer);
             }
 
             return;
           }
 
-          if (this.checked) {
-            gambutLayer.addTo(map);
-          } else {
-            map.removeLayer(gambutLayer);
+          this.disabled = true;
+
+          const layer =
+            await loadGambut();
+
+          this.disabled = false;
+
+          if (layer && this.checked) {
+            layer.addTo(map);
           }
-        });
+
+          if (!layer) {
+            this.checked = false;
+          }
+        }
+      );
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * FILTER
-     * =====================================================
+     * ======================================================
      */
 
     function renderFilterTanggal() {
       const div =
-        document.getElementById("tanggal-filter");
+        document.getElementById(
+          "tanggal-filter"
+        );
 
       const daftarTanggal =
         getLastThreeDates();
@@ -1001,30 +1177,6 @@
             </label>
           `;
         })
-        .join("");
-    }
-
-    function renderFilterSumber() {
-      const div =
-        document.getElementById("sumber-filter");
-
-      div.className = "";
-
-      /*
-       * Ketiga sumber selalu ditampilkan.
-       */
-      div.innerHTML = SUMBER_YANG_DIIZINKAN
-        .map(sumber => `
-          <label>
-            <input
-              type="checkbox"
-              class="sumber-filter"
-              value="${sumber}"
-              checked
-            >
-            ${sumber}
-          </label>
-        `)
         .join("");
     }
 
@@ -1061,20 +1213,16 @@
     }
 
     function dataSesuaiFilter(row, filter) {
-      const confidence =
-        ambilConfidence(row);
-
-      const tanggalData =
-        extractTanggal(ambilWaktu(row));
-
-      const sumberData =
-        ambilSumber(row);
-
       return (
-        SUMBER_YANG_DIIZINKAN.includes(sumberData) &&
-        filter.levels.includes(confidence) &&
-        filter.tanggal.includes(tanggalData) &&
-        filter.sumber.includes(sumberData)
+        filter.levels.includes(
+          row._confidence
+        ) &&
+        filter.tanggal.includes(
+          row._tanggalFilter
+        ) &&
+        filter.sumber.includes(
+          row._sumberNormal
+        )
       );
     }
 
@@ -1087,11 +1235,62 @@
       );
     }
 
+    /*
+     * Menyimpan nilai hasil parsing agar tidak perlu
+     * diproses berulang kali ketika filter dicentang.
+     */
+    function siapkanData(row) {
+      row._latitude =
+        ambilLatitude(row);
+
+      row._longitude =
+        ambilLongitude(row);
+
+      row._confidence =
+        ambilConfidence(row);
+
+      row._waktu =
+        ambilWaktu(row);
+
+      row._tanggalFilter =
+        extractTanggal(row._waktu);
+
+      row._sumberNormal =
+        ambilSumber(row);
+
+      return row;
+    }
+
+    /*
+     * ======================================================
+     * TAMPILKAN HOTSPOT
+     * ======================================================
+     */
+
     function applyFilters() {
       const filter =
         getSelectedFilters();
 
       hotspotLayer.clearLayers();
+
+      const jumlahElement =
+        document.getElementById(
+          "jumlah-hotspot"
+        );
+
+      if (
+        filter.levels.length === 0 ||
+        filter.tanggal.length === 0 ||
+        filter.sumber.length === 0
+      ) {
+        jumlahElement.textContent =
+          "0 hotspot ditampilkan";
+
+        return;
+      }
+
+      const fragment =
+        document.createDocumentFragment();
 
       let jumlahDitampilkan = 0;
 
@@ -1101,10 +1300,10 @@
         }
 
         const latitude =
-          ambilLatitude(row);
+          row._latitude;
 
         const longitude =
-          ambilLongitude(row);
+          row._longitude;
 
         if (
           !Number.isFinite(latitude) ||
@@ -1121,15 +1320,6 @@
         ) {
           return;
         }
-
-        const confidence =
-          ambilConfidence(row);
-
-        const waktu =
-          ambilWaktu(row);
-
-        const sumber =
-          ambilSumber(row);
 
         const provinsi = ambilNilai(row, [
           "Provinsi",
@@ -1161,12 +1351,12 @@
         ]);
 
         const warna =
-          confidence === "high"
+          row._confidence === "high"
             ? "red"
             : "yellow";
 
         const popup = `
-          <b>${escapeHtml(waktu || "-")}</b>
+          <b>${escapeHtml(row._waktu || "-")}</b>
           <br>
           ${escapeHtml(provinsi || "-")} -
           ${escapeHtml(kabupaten || "-")}
@@ -1175,18 +1365,21 @@
           <br>
           Desa: ${escapeHtml(desa || "-")}
           <br>
-          Confidence: ${escapeHtml(confidence || "-")}
+          Confidence:
+          ${escapeHtml(row._confidence || "-")}
           <br>
-          Sumber: ${escapeHtml(sumber || "-")}
+          Sumber:
+          ${escapeHtml(row._sumberNormal || "-")}
           <br>
           Koordinat:
           ${latitude.toFixed(4)},
           ${longitude.toFixed(4)}
         `;
 
-        L.circleMarker(
+        const marker = L.circleMarker(
           [latitude, longitude],
           {
+            renderer: hotspotRenderer,
             radius: 6,
             fillColor: warna,
             color: "#000",
@@ -1194,17 +1387,16 @@
             opacity: 0.8,
             fillOpacity: 0.65
           }
-        )
-          .addTo(hotspotLayer)
-          .bindPopup(popup);
+        );
+
+        marker.bindPopup(popup);
+        hotspotLayer.addLayer(marker);
 
         jumlahDitampilkan++;
       });
 
-      console.log(
-        "Jumlah hotspot yang ditampilkan:",
-        jumlahDitampilkan
-      );
+      jumlahElement.textContent =
+        `${jumlahDitampilkan} hotspot ditampilkan`;
     }
 
     function pasangFilterListeners() {
@@ -1235,23 +1427,30 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * AMBIL DATA HOTSPOT
-     * =====================================================
+     * ======================================================
      */
 
     async function fetchAndRenderData() {
       const tanggalDiv =
-        document.getElementById("tanggal-filter");
+        document.getElementById(
+          "tanggal-filter"
+        );
 
-      const sumberDiv =
-        document.getElementById("sumber-filter");
+      const jumlahElement =
+        document.getElementById(
+          "jumlah-hotspot"
+        );
 
-      tanggalDiv.className = "filter-message";
-      tanggalDiv.textContent = "Memuat...";
+      tanggalDiv.className =
+        "filter-message";
 
-      sumberDiv.className = "filter-message";
-      sumberDiv.textContent = "Memuat...";
+      tanggalDiv.textContent =
+        "Memuat tanggal...";
+
+      jumlahElement.textContent =
+        "Mengambil data hotspot...";
 
       try {
         const data = await fetchJson(
@@ -1266,40 +1465,65 @@
         }
 
         /*
-         * Hanya mengambil NASA-MODIS, NASA-NOAA20,
-         * dan NASA-SNPP.
+         * Parsing dilakukan satu kali saja.
          */
-        rawData = data.filter(row => {
-          const sumber =
-            ambilSumber(row);
+        const dataSiap =
+          data.map(siapkanData);
 
-          return SUMBER_YANG_DIIZINKAN.includes(
-            sumber
+        /*
+         * Hanya simpan:
+         * 1. Tiga sumber NASA
+         * 2. Confidence medium/high
+         * 3. Tanggal hari ini sampai 2 hari sebelumnya
+         * 4. Koordinat yang valid
+         */
+        const tigaTanggal =
+          new Set(getLastThreeDates());
+
+        rawData = dataSiap.filter(row => {
+          return (
+            SUMBER_YANG_DIIZINKAN.includes(
+              row._sumberNormal
+            ) &&
+            (
+              row._confidence === "medium" ||
+              row._confidence === "high"
+            ) &&
+            tigaTanggal.has(
+              row._tanggalFilter
+            ) &&
+            Number.isFinite(
+              row._latitude
+            ) &&
+            Number.isFinite(
+              row._longitude
+            )
           );
         });
 
+        /*
+         * Hapus referensi data besar yang tidak diperlukan.
+         */
         renderFilterTanggal();
-        renderFilterSumber();
         pasangFilterListeners();
-        applyFilters();
+
+        /*
+         * Beri kesempatan browser menggambar tampilan
+         * sebelum menambahkan seluruh marker.
+         */
+        requestAnimationFrame(() => {
+          applyFilters();
+        });
 
         console.log(
-          "Jumlah seluruh data dari API:",
+          "Seluruh baris API:",
           data.length
         );
 
         console.log(
-          "Jumlah data dari 3 sumber NASA:",
+          "Data 3 hari yang digunakan:",
           rawData.length
         );
-
-        if (rawData.length === 0) {
-          alert(
-            "Data berhasil dimuat, tetapi tidak ditemukan " +
-            "data NASA-MODIS, NASA-NOAA20, atau NASA-SNPP.\n\n" +
-            "Periksa penulisan pada kolom Sumber di Google Sheet."
-          );
-        }
       } catch (error) {
         console.error(
           "Gagal memuat data hotspot:",
@@ -1315,11 +1539,8 @@
         tanggalDiv.textContent =
           "Tanggal gagal dimuat.";
 
-        sumberDiv.className =
-          "error-message";
-
-        sumberDiv.textContent =
-          "Data sumber gagal dimuat.";
+        jumlahElement.textContent =
+          "Data hotspot gagal dimuat";
 
         alert(
           "Data hotspot gagal dimuat.\n\n" +
@@ -1329,14 +1550,14 @@
     }
 
     /*
-     * =====================================================
-     * EKSPOR DATA
-     * =====================================================
+     * ======================================================
+     * EKSPOR
+     * ======================================================
      */
 
     function buatDataEkspor(filtered) {
       return filtered.map(row => ({
-        "Tanggal & Jam": ambilWaktu(row),
+        "Tanggal & Jam": row._waktu,
 
         "Provinsi": ambilNilai(row, [
           "Provinsi",
@@ -1361,10 +1582,10 @@
           "Kelurahan"
         ]),
 
-        "Latitude": ambilLatitude(row),
-        "Longitude": ambilLongitude(row),
-        "Confidence": ambilConfidence(row),
-        "Sumber": ambilSumber(row)
+        "Latitude": row._latitude,
+        "Longitude": row._longitude,
+        "Confidence": row._confidence,
+        "Sumber": row._sumberNormal
       }));
     }
 
@@ -1409,7 +1630,7 @@
           document.createElement("a");
 
         link.href = objectUrl;
-        link.download = "hotspot_nasa.csv";
+        link.download = "hotspot_nasa_3_hari.csv";
 
         document.body.appendChild(link);
         link.click();
@@ -1435,7 +1656,7 @@
 
         XLSX.writeFile(
           workbook,
-          "hotspot_nasa.xlsx"
+          "hotspot_nasa_3_hari.xlsx"
         );
 
         return;
@@ -1445,12 +1666,11 @@
         const { jsPDF } =
           window.jspdf;
 
-        const documentPdf =
-          new jsPDF({
-            orientation: "landscape",
-            unit: "mm",
-            format: "a4"
-          });
+        const documentPdf = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4"
+        });
 
         const table = dataEkspor.map(row => [
           row["Tanggal & Jam"],
@@ -1458,15 +1678,8 @@
           row["Kab/Kota"],
           row["Kecamatan"],
           row["Desa"],
-
-          Number.isFinite(row["Latitude"])
-            ? row["Latitude"].toFixed(5)
-            : "",
-
-          Number.isFinite(row["Longitude"])
-            ? row["Longitude"].toFixed(5)
-            : "",
-
+          Number(row["Latitude"]).toFixed(5),
+          Number(row["Longitude"]).toFixed(5),
           row["Confidence"],
           row["Sumber"]
         ]);
@@ -1474,7 +1687,7 @@
         documentPdf.setFontSize(13);
 
         documentPdf.text(
-          "Data Hotspot NASA",
+          "Data Hotspot NASA - 3 Hari",
           14,
           12
         );
@@ -1507,15 +1720,15 @@
         });
 
         documentPdf.save(
-          "hotspot_nasa.pdf"
+          "hotspot_nasa_3_hari.pdf"
         );
       }
     }
 
     /*
-     * =====================================================
-     * HOTSPOT PERUSAHAAN
-     * =====================================================
+     * ======================================================
+     * EKSPOR PERUSAHAAN
+     * ======================================================
      */
 
     function cariNamaPerusahaan(properties) {
@@ -1523,7 +1736,7 @@
         return "Tidak diketahui";
       }
 
-      const kemungkinanKolom = [
+      const daftarKolom = [
         "NAMA",
         "Nama",
         "nama",
@@ -1538,7 +1751,7 @@
         "NAMOBJ"
       ];
 
-      for (const kolom of kemungkinanKolom) {
+      for (const kolom of daftarKolom) {
         if (
           properties[kolom] !== null &&
           properties[kolom] !== undefined &&
@@ -1564,12 +1777,12 @@
         return false;
       }
 
-      const geometryType =
+      const tipe =
         geojson.geometry.type;
 
       if (
-        geometryType !== "Polygon" &&
-        geometryType !== "MultiPolygon"
+        tipe !== "Polygon" &&
+        tipe !== "MultiPolygon"
       ) {
         return false;
       }
@@ -1589,23 +1802,38 @@
       }
     }
 
-    function exportPerusahaanPDF(type) {
-      const layer =
-        type === "pbph"
-          ? pbphLayer
-          : kebunLayer;
-
+    async function exportPerusahaanPDF(type) {
       const namaLayer =
         type === "pbph"
           ? "PBPH"
           : "Kebun";
 
+      let layer =
+        type === "pbph"
+          ? pbphLayer
+          : kebunLayer;
+
+      /*
+       * Kalau belum dimuat, GeoJSON dimuat saat tombol
+       * PDF perusahaan ditekan.
+       */
       if (!layer) {
-        alert(
-          `Layer ${namaLayer} belum selesai dimuat ` +
-          "atau file GeoJSON tidak ditemukan."
+        const lanjut = confirm(
+          `Layer ${namaLayer} belum dimuat.\n\n` +
+          "Muat layer sekarang?"
         );
 
+        if (!lanjut) {
+          return;
+        }
+
+        layer =
+          type === "pbph"
+            ? await loadPBPH()
+            : await loadKebun();
+      }
+
+      if (!layer) {
         return;
       }
 
@@ -1621,25 +1849,12 @@
       }
 
       const result = {};
-      let jumlahHotspotDalamPolygon = 0;
+      let jumlahDalamPolygon = 0;
 
       filtered.forEach(row => {
-        const latitude =
-          ambilLatitude(row);
-
-        const longitude =
-          ambilLongitude(row);
-
-        if (
-          !Number.isFinite(latitude) ||
-          !Number.isFinite(longitude)
-        ) {
-          return;
-        }
-
         const point = turf.point([
-          longitude,
-          latitude
+          row._longitude,
+          row._latitude
         ]);
 
         layer.eachLayer(polygonLayer => {
@@ -1668,15 +1883,13 @@
             geojson.properties ||
             {};
 
-          const namaPerusahaan =
+          const nama =
             cariNamaPerusahaan(properties);
 
-          if (!result[namaPerusahaan]) {
-            result[namaPerusahaan] = 0;
-          }
+          result[nama] =
+            (result[nama] || 0) + 1;
 
-          result[namaPerusahaan]++;
-          jumlahHotspotDalamPolygon++;
+          jumlahDalamPolygon++;
         });
       });
 
@@ -1691,7 +1904,7 @@
 
       if (rows.length === 0) {
         alert(
-          `Tidak ditemukan hotspot di dalam polygon ${namaLayer}.`
+          `Tidak ditemukan hotspot di dalam ${namaLayer}.`
         );
 
         return;
@@ -1700,12 +1913,11 @@
       const { jsPDF } =
         window.jspdf;
 
-      const documentPdf =
-        new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
-          format: "a4"
-        });
+      const documentPdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
 
       documentPdf.setFontSize(14);
 
@@ -1718,14 +1930,13 @@
       documentPdf.setFontSize(10);
 
       documentPdf.text(
-        "Sumber: NASA-MODIS, NASA-NOAA20, NASA-SNPP",
+        "NASA-MODIS, NASA-NOAA20, NASA-SNPP",
         14,
         22
       );
 
       documentPdf.text(
-        `Jumlah hotspot dalam polygon: ` +
-        `${jumlahHotspotDalamPolygon}`,
+        `Jumlah hotspot: ${jumlahDalamPolygon}`,
         14,
         28
       );
@@ -1771,9 +1982,9 @@
     }
 
     /*
-     * =====================================================
-     * LOGIN DAN INISIALISASI
-     * =====================================================
+     * ======================================================
+     * LOGIN
+     * ======================================================
      */
 
     function checkPassword() {
@@ -1810,7 +2021,13 @@
       }
     }
 
-    function init() {
+    /*
+     * ======================================================
+     * INISIALISASI
+     * ======================================================
+     */
+
+    async function init() {
       if (aplikasiSudahDimulai) {
         return;
       }
@@ -1819,14 +2036,18 @@
 
       pasangLayerListeners();
 
-      Promise.allSettled([
-        loadProvinsi(),
-        loadPBPH(),
-        loadKebun(),
-        loadGambut()
-      ]);
+      /*
+       * Data hotspot didahulukan.
+       * Tidak menunggu PBPH, kebun, atau gambut.
+       */
+      await fetchAndRenderData();
 
-      fetchAndRenderData();
+      /*
+       * Batas provinsi dimuat setelah hotspot muncul.
+       */
+      setTimeout(() => {
+        loadProvinsi();
+      }, 100);
 
       setTimeout(() => {
         map.invalidateSize();
