@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -209,43 +210,6 @@
       display: none;
       margin-top: 10px;
       color: #ff6b6b;
-    }
-
-    .popup-layer {
-      min-width: 230px;
-      max-width: 330px;
-      max-height: 300px;
-      overflow-y: auto;
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-    }
-
-    .popup-title {
-      margin-bottom: 7px;
-      padding: 7px;
-      color: white;
-      background: #444;
-      border-radius: 4px;
-      text-align: center;
-      font-weight: bold;
-    }
-
-    .popup-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .popup-table td {
-      padding: 5px;
-      border: 1px solid #ddd;
-      vertical-align: top;
-      word-break: break-word;
-    }
-
-    .popup-label {
-      width: 40%;
-      background: #f2f2f2;
-      font-weight: bold;
     }
 
     @media (max-width: 600px) {
@@ -462,6 +426,12 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+    /*
+     * =====================================================
+     * KONFIGURASI
+     * =====================================================
+     */
+
     const DATA_URL =
       "https://opensheet.elk.sh/" +
       "1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/" +
@@ -492,10 +462,10 @@
 
     let rawData = [];
 
+    let provinsiLayer = null;
     let pbphLayer = null;
     let kebunLayer = null;
     let gambutLayer = null;
-    let provinsiLayer = null;
 
     let aplikasiSudahDimulai = false;
     let filterListenerSudahDipasang = false;
@@ -510,16 +480,6 @@
       attributionControl: false,
       preferCanvas: true
     }).setView([-2.5, 117], 5);
-
-    map.createPane("polygonPane");
-
-    map.getPane(
-      "polygonPane"
-    ).style.zIndex = 450;
-
-    map.getPane(
-      "polygonPane"
-    ).style.pointerEvents = "auto";
 
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/" +
@@ -539,7 +499,7 @@
 
     /*
      * =====================================================
-     * FUNGSI UMUM
+     * FUNGSI BANTUAN
      * =====================================================
      */
 
@@ -575,7 +535,7 @@
 
     function ambilPropertiGeoJSON(
       properties,
-      daftarKemungkinan
+      daftarNama
     ) {
       if (!properties) {
         return "";
@@ -584,32 +544,27 @@
       const semuaKey =
         Object.keys(properties);
 
-      for (
-        const kemungkinan
-        of daftarKemungkinan
-      ) {
+      for (const kemungkinan of daftarNama) {
         const target =
           normalisasiNamaKolom(
             kemungkinan
           );
 
-        const keyDitemukan =
+        const key =
           semuaKey.find(
-            key =>
-              normalisasiNamaKolom(key) ===
+            nama =>
+              normalisasiNamaKolom(nama) ===
               target
           );
 
         if (
-          keyDitemukan &&
-          properties[keyDitemukan] !== null &&
-          properties[keyDitemukan] !== undefined &&
-          String(
-            properties[keyDitemukan]
-          ).trim() !== ""
+          key &&
+          properties[key] !== null &&
+          properties[key] !== undefined &&
+          String(properties[key]).trim() !== ""
         ) {
           return String(
-            properties[keyDitemukan]
+            properties[key]
           ).trim();
         }
       }
@@ -617,284 +572,797 @@
       return "";
     }
 
-    /*
-     * =====================================================
-     * POPUP POLYGON
-     * =====================================================
-     */
+    function buatBarisPopup(
+      label,
+      nilai
+    ) {
+      if (
+        nilai === null ||
+        nilai === undefined ||
+        String(nilai).trim() === ""
+      ) {
+        return "";
+      }
 
-    function buatPopupGeoJSON(namaLayer) {
-      return function (feature, layer) {
-        const properties =
-          feature?.properties || {};
+      return `
+        <tr>
+          <td style="
+            width:42%;
+            padding:5px;
+            border:1px solid #ddd;
+            background:#f2f2f2;
+            font-weight:bold;
+            vertical-align:top;
+          ">
+            ${escapeHtml(label)}
+          </td>
 
-        let daftarAtribut = [];
+          <td style="
+            padding:5px;
+            border:1px solid #ddd;
+            vertical-align:top;
+            word-break:break-word;
+          ">
+            ${escapeHtml(nilai)}
+          </td>
+        </tr>
+      `;
+    }
 
-        /*
-         * ATRIBUT PBPH
-         */
-        if (namaLayer === "PBPH") {
-          daftarAtribut = [
-            {
-              label: "Nama Perusahaan",
-              keys: [
-                "Nama_Perusahaan",
-                "NAMA_PERUSAHAAN",
-                "nama_perusahaan"
-              ]
-            },
-            {
-              label: "Jenis",
-              keys: [
-                "jenis",
-                "JENIS",
-                "Jenis"
-              ]
-            },
-            {
-              label: "Luas",
-              keys: [
-                "luas_cyl",
-                "LUAS_CYL",
-                "Luas_Cyl"
-              ]
-            }
-          ];
-        }
+    function buatKotakPopup(
+      judul,
+      warna,
+      baris
+    ) {
+      const isi =
+        baris.filter(Boolean).join("");
 
-        /*
-         * ATRIBUT KEBUN
-         */
-        if (namaLayer === "KEBUN") {
-          daftarAtribut = [
-            {
-              label: "Nama Perusahaan",
-              keys: [
-                "Nama_Perusahaan",
-                "NAMA_PERUSAHAAN",
-                "nama_perusahaan"
-              ]
-            },
-            {
-              label: "Luas",
-              keys: [
-                "Luas",
-                "LUAS",
-                "luas"
-              ]
-            },
-            {
-              label: "Tipe Hak",
-              keys: [
-                "Tipehak",
-                "TIPEHAK",
-                "tipehak",
-                "Tipe_Hak",
-                "TIPE_HAK"
-              ]
-            },
-            {
-              label: "Produk",
-              keys: [
-                "Produk",
-                "PRODUK",
-                "produk"
-              ]
-            }
-          ];
-        }
+      return `
+        <div style="
+          min-width:230px;
+          max-width:340px;
+          max-height:310px;
+          overflow-y:auto;
+          font-family:Arial,sans-serif;
+          font-size:12px;
+        ">
+          <div style="
+            margin-bottom:7px;
+            padding:7px;
+            color:white;
+            background:${warna};
+            border-radius:4px;
+            text-align:center;
+            font-weight:bold;
+          ">
+            ${escapeHtml(judul)}
+          </div>
 
-        /*
-         * ATRIBUT GAMBUT
-         */
-        if (namaLayer === "GAMBUT") {
-          daftarAtribut = [
-            {
-              label: "Nama",
-              keys: [
-                "NAMA",
-                "Nama",
-                "nama",
-                "NAMOBJ",
-                "NAMA_KHG"
-              ]
-            },
-            {
-              label: "Fungsi",
-              keys: [
-                "FUNGSI",
-                "Fungsi",
-                "fungsi"
-              ]
-            },
-            {
-              label: "Luas",
-              keys: [
-                "LUAS",
-                "Luas",
-                "luas",
-                "LUAS_HA"
-              ]
-            },
-            {
-              label: "Provinsi",
-              keys: [
-                "PROVINSI",
-                "Provinsi",
-                "provinsi"
-              ]
-            },
-            {
-              label: "Kabupaten",
-              keys: [
-                "KABUPATEN",
-                "Kabupaten",
-                "kabupaten",
-                "KAB_KOTA"
-              ]
-            }
-          ];
-        }
-
-        const hasilAtribut = [];
-
-        daftarAtribut.forEach(item => {
-          const nilai =
-            ambilPropertiGeoJSON(
-              properties,
-              item.keys
-            );
-
-          if (nilai) {
-            hasilAtribut.push({
-              label: item.label,
-              nilai
-            });
+          ${
+            isi
+              ? `
+                <table style="
+                  width:100%;
+                  border-collapse:collapse;
+                ">
+                  ${isi}
+                </table>
+              `
+              : `
+                <div style="padding:8px;">
+                  Atribut tidak tersedia.
+                </div>
+              `
           }
-        });
+        </div>
+      `;
+    }
 
-        let popupHtml = `
-          <div class="popup-layer">
-            <div class="popup-title">
-              INFORMASI ${escapeHtml(namaLayer)}
-            </div>
-        `;
-
-        if (
-          hasilAtribut.length === 0
-        ) {
-          popupHtml += `
-            <div style="padding:8px;">
-              Atribut yang diminta tidak ditemukan.
-            </div>
-          `;
-
-          console.warn(
-            `Atribut ${namaLayer} tidak ditemukan:`,
-            properties
-          );
-        } else {
-          popupHtml += `
-            <table class="popup-table">
-          `;
-
-          hasilAtribut.forEach(item => {
-            popupHtml += `
-              <tr>
-                <td class="popup-label">
-                  ${escapeHtml(item.label)}
-                </td>
-
-                <td>
-                  ${escapeHtml(item.nilai)}
-                </td>
-              </tr>
-            `;
-          });
-
-          popupHtml += `</table>`;
-        }
-
-        popupHtml += `</div>`;
-
-        layer.bindPopup(
-          popupHtml,
+    async function fetchJson(
+      url,
+      namaData
+    ) {
+      const response =
+        await fetch(
+          url,
           {
-            maxWidth: 350,
-            maxHeight: 320,
-            autoPan: true
+            cache: "no-store"
           }
         );
 
-        layer.on(
-          "click",
-          function (event) {
-            L.DomEvent.stopPropagation(
-              event
-            );
-
-            this.openPopup(
-              event.latlng
-            );
-          }
+      if (!response.ok) {
+        throw new Error(
+          `${namaData} gagal dimuat. HTTP ${response.status}`
         );
+      }
 
-        layer.on(
-          "mouseover",
-          function () {
-            this.setStyle({
-              weight: 4,
-              fillOpacity: 0.35
-            });
-          }
+      const text =
+        await response.text();
+
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        throw new Error(
+          `${namaData} bukan JSON yang valid`
         );
-
-        layer.on(
-          "mouseout",
-          function () {
-            if (
-              namaLayer === "PBPH"
-            ) {
-              this.setStyle({
-                color: "blue",
-                weight: 2,
-                fill: true,
-                fillColor: "blue",
-                fillOpacity: 0.08
-              });
-            }
-
-            if (
-              namaLayer === "KEBUN"
-            ) {
-              this.setStyle({
-                color: "green",
-                weight: 2,
-                fill: true,
-                fillColor: "green",
-                fillOpacity: 0.10
-              });
-            }
-
-            if (
-              namaLayer === "GAMBUT"
-            ) {
-              this.setStyle({
-                color: "brown",
-                weight: 2,
-                fill: true,
-                fillColor: "brown",
-                fillOpacity: 0.10
-              });
-            }
-          }
-        );
-      };
+      }
     }
 
     /*
      * =====================================================
-     * HOTSPOT
+     * POPUP PBPH
+     * =====================================================
+     */
+
+    function popupPBPH(
+      feature,
+      layer
+    ) {
+      const p =
+        feature?.properties || {};
+
+      const namaPerusahaan =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Nama_Perusahaan",
+            "NAMA_PERUSAHAAN",
+            "nama_perusahaan"
+          ]
+        );
+
+      const jenis =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "jenis",
+            "JENIS",
+            "Jenis"
+          ]
+        );
+
+      const luas =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "luas_cyl",
+            "LUAS_CYL",
+            "Luas_Cyl"
+          ]
+        );
+
+      const popupHtml =
+        buatKotakPopup(
+          "INFORMASI PBPH",
+          "#2458a6",
+          [
+            buatBarisPopup(
+              "Nama Perusahaan",
+              namaPerusahaan
+            ),
+
+            buatBarisPopup(
+              "Jenis",
+              jenis
+            ),
+
+            buatBarisPopup(
+              "Luas",
+              luas
+            )
+          ]
+        );
+
+      layer.bindPopup(
+        popupHtml,
+        {
+          maxWidth: 360,
+          maxHeight: 330,
+          autoPan: true,
+          closeButton: true
+        }
+      );
+
+      layer.on(
+        "mouseover",
+        function () {
+          this.setStyle({
+            weight: 4,
+            fillOpacity: 0.35
+          });
+        }
+      );
+
+      layer.on(
+        "mouseout",
+        function () {
+          this.setStyle({
+            color: "blue",
+            weight: 2,
+            fill: true,
+            fillColor: "blue",
+            fillOpacity: 0.15
+          });
+        }
+      );
+    }
+
+    /*
+     * =====================================================
+     * POPUP KEBUN
+     * =====================================================
+     */
+
+    function popupKebun(
+      feature,
+      layer
+    ) {
+      const p =
+        feature?.properties || {};
+
+      const namaPerusahaan =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Nama_Perusahaan",
+            "NAMA_PERUSAHAAN",
+            "nama_perusahaan"
+          ]
+        );
+
+      const luas =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Luas",
+            "LUAS",
+            "luas"
+          ]
+        );
+
+      const tipeHak =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Tipehak",
+            "TIPEHAK",
+            "tipehak",
+            "Tipe_Hak",
+            "TIPE_HAK"
+          ]
+        );
+
+      const produk =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Produk",
+            "PRODUK",
+            "produk"
+          ]
+        );
+
+      const popupHtml =
+        buatKotakPopup(
+          "INFORMASI KEBUN",
+          "#23823b",
+          [
+            buatBarisPopup(
+              "Nama Perusahaan",
+              namaPerusahaan
+            ),
+
+            buatBarisPopup(
+              "Luas",
+              luas
+            ),
+
+            buatBarisPopup(
+              "Tipe Hak",
+              tipeHak
+            ),
+
+            buatBarisPopup(
+              "Produk",
+              produk
+            )
+          ]
+        );
+
+      layer.bindPopup(
+        popupHtml,
+        {
+          maxWidth: 360,
+          maxHeight: 330,
+          autoPan: true,
+          closeButton: true
+        }
+      );
+
+      layer.on(
+        "mouseover",
+        function () {
+          this.setStyle({
+            weight: 4,
+            fillOpacity: 0.35
+          });
+        }
+      );
+
+      layer.on(
+        "mouseout",
+        function () {
+          this.setStyle({
+            color: "green",
+            weight: 2,
+            fill: true,
+            fillColor: "green",
+            fillOpacity: 0.15
+          });
+        }
+      );
+    }
+
+    /*
+     * =====================================================
+     * POPUP GAMBUT
+     * =====================================================
+     */
+
+    function popupGambut(
+      feature,
+      layer
+    ) {
+      const p =
+        feature?.properties || {};
+
+      const nama =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Nama",
+            "NAMA",
+            "nama",
+            "NAMOBJ",
+            "NAMA_KHG",
+            "KHG"
+          ]
+        );
+
+      const fungsi =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Fungsi",
+            "FUNGSI",
+            "fungsi",
+            "FUNGSI_EKOSISTEM"
+          ]
+        );
+
+      const luas =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Luas",
+            "LUAS",
+            "luas",
+            "LUAS_HA"
+          ]
+        );
+
+      const provinsi =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Provinsi",
+            "PROVINSI",
+            "provinsi",
+            "PROPINSI"
+          ]
+        );
+
+      const kabupaten =
+        ambilPropertiGeoJSON(
+          p,
+          [
+            "Kabupaten",
+            "KABUPATEN",
+            "kabupaten",
+            "KAB_KOTA"
+          ]
+        );
+
+      const popupHtml =
+        buatKotakPopup(
+          "INFORMASI GAMBUT",
+          "#795234",
+          [
+            buatBarisPopup(
+              "Nama",
+              nama
+            ),
+
+            buatBarisPopup(
+              "Fungsi",
+              fungsi
+            ),
+
+            buatBarisPopup(
+              "Luas",
+              luas
+            ),
+
+            buatBarisPopup(
+              "Provinsi",
+              provinsi
+            ),
+
+            buatBarisPopup(
+              "Kabupaten",
+              kabupaten
+            )
+          ]
+        );
+
+      layer.bindPopup(
+        popupHtml,
+        {
+          maxWidth: 360,
+          maxHeight: 330,
+          autoPan: true,
+          closeButton: true
+        }
+      );
+
+      layer.on(
+        "mouseover",
+        function () {
+          this.setStyle({
+            weight: 4,
+            fillOpacity: 0.35
+          });
+        }
+      );
+
+      layer.on(
+        "mouseout",
+        function () {
+          this.setStyle({
+            color: "brown",
+            weight: 2,
+            fill: true,
+            fillColor: "brown",
+            fillOpacity: 0.15
+          });
+        }
+      );
+    }
+
+    /*
+     * =====================================================
+     * LOAD GEOJSON
+     * =====================================================
+     */
+
+    async function loadProvinsi() {
+      if (provinsiLayer) {
+        return provinsiLayer;
+      }
+
+      try {
+        const geojson =
+          await fetchJson(
+            "provinsi.geojson",
+            "Batas provinsi"
+          );
+
+        provinsiLayer =
+          L.geoJSON(
+            geojson,
+            {
+              interactive: false,
+
+              style: {
+                color: "black",
+                weight: 1,
+                fillOpacity: 0,
+                interactive: false
+              }
+            }
+          ).addTo(map);
+
+        /*
+         * Batas provinsi diletakkan di belakang.
+         */
+        if (
+          provinsiLayer.bringToBack
+        ) {
+          provinsiLayer.bringToBack();
+        }
+
+        return provinsiLayer;
+      } catch (error) {
+        console.error(error);
+        return null;
+      }
+    }
+
+    async function loadPBPH() {
+      if (pbphLayer) {
+        return pbphLayer;
+      }
+
+      try {
+        const geojson =
+          await fetchJson(
+            "PBPH.geojson",
+            "Layer PBPH"
+          );
+
+        pbphLayer =
+          L.geoJSON(
+            geojson,
+            {
+              interactive: true,
+              bubblingMouseEvents: false,
+
+              style: {
+                color: "blue",
+                weight: 2,
+                opacity: 1,
+                fill: true,
+                fillColor: "blue",
+                fillOpacity: 0.15,
+                interactive: true
+              },
+
+              onEachFeature:
+                popupPBPH
+            }
+          );
+
+        return pbphLayer;
+      } catch (error) {
+        console.error(error);
+
+        alert(
+          "Layer PBPH gagal dimuat.\n\n" +
+          error.message
+        );
+
+        return null;
+      }
+    }
+
+    async function loadKebun() {
+      if (kebunLayer) {
+        return kebunLayer;
+      }
+
+      try {
+        const geojson =
+          await fetchJson(
+            "kebun.geojson",
+            "Layer kebun"
+          );
+
+        kebunLayer =
+          L.geoJSON(
+            geojson,
+            {
+              interactive: true,
+              bubblingMouseEvents: false,
+
+              style: {
+                color: "green",
+                weight: 2,
+                opacity: 1,
+                fill: true,
+                fillColor: "green",
+                fillOpacity: 0.15,
+                interactive: true
+              },
+
+              onEachFeature:
+                popupKebun
+            }
+          );
+
+        return kebunLayer;
+      } catch (error) {
+        console.error(error);
+
+        alert(
+          "Layer kebun gagal dimuat.\n\n" +
+          error.message
+        );
+
+        return null;
+      }
+    }
+
+    async function loadGambut() {
+      if (gambutLayer) {
+        return gambutLayer;
+      }
+
+      try {
+        const geojson =
+          await fetchJson(
+            "gambut.geojson",
+            "Layer gambut"
+          );
+
+        gambutLayer =
+          L.geoJSON(
+            geojson,
+            {
+              interactive: true,
+              bubblingMouseEvents: false,
+
+              style: {
+                color: "brown",
+                weight: 2,
+                opacity: 1,
+                fill: true,
+                fillColor: "brown",
+                fillOpacity: 0.15,
+                interactive: true
+              },
+
+              onEachFeature:
+                popupGambut
+            }
+          );
+
+        return gambutLayer;
+      } catch (error) {
+        console.error(error);
+
+        alert(
+          "Layer gambut gagal dimuat.\n\n" +
+          error.message
+        );
+
+        return null;
+      }
+    }
+
+    /*
+     * =====================================================
+     * TOGGLE LAYER
+     * =====================================================
+     */
+
+    function pasangLayerListeners() {
+      document
+        .getElementById(
+          "pbph-toggle"
+        )
+        .addEventListener(
+          "change",
+          async function () {
+            if (!this.checked) {
+              if (pbphLayer) {
+                map.removeLayer(
+                  pbphLayer
+                );
+              }
+
+              return;
+            }
+
+            this.disabled = true;
+
+            const layer =
+              await loadPBPH();
+
+            this.disabled = false;
+
+            if (
+              layer &&
+              this.checked
+            ) {
+              layer.addTo(map);
+
+              if (
+                layer.bringToFront
+              ) {
+                layer.bringToFront();
+              }
+            } else if (!layer) {
+              this.checked = false;
+            }
+          }
+        );
+
+      document
+        .getElementById(
+          "kebun-toggle"
+        )
+        .addEventListener(
+          "change",
+          async function () {
+            if (!this.checked) {
+              if (kebunLayer) {
+                map.removeLayer(
+                  kebunLayer
+                );
+              }
+
+              return;
+            }
+
+            this.disabled = true;
+
+            const layer =
+              await loadKebun();
+
+            this.disabled = false;
+
+            if (
+              layer &&
+              this.checked
+            ) {
+              layer.addTo(map);
+
+              if (
+                layer.bringToFront
+              ) {
+                layer.bringToFront();
+              }
+            } else if (!layer) {
+              this.checked = false;
+            }
+          }
+        );
+
+      document
+        .getElementById(
+          "gambut-toggle"
+        )
+        .addEventListener(
+          "change",
+          async function () {
+            if (!this.checked) {
+              if (gambutLayer) {
+                map.removeLayer(
+                  gambutLayer
+                );
+              }
+
+              return;
+            }
+
+            this.disabled = true;
+
+            const layer =
+              await loadGambut();
+
+            this.disabled = false;
+
+            if (
+              layer &&
+              this.checked
+            ) {
+              layer.addTo(map);
+
+              if (
+                layer.bringToFront
+              ) {
+                layer.bringToFront();
+              }
+            } else if (!layer) {
+              this.checked = false;
+            }
+          }
+        );
+    }
+
+    /*
+     * =====================================================
+     * DATA HOTSPOT
      * =====================================================
      */
 
@@ -1159,336 +1627,6 @@
       return hasil;
     }
 
-    async function fetchJson(
-      url,
-      namaData
-    ) {
-      const response =
-        await fetch(
-          url,
-          {
-            cache: "no-store"
-          }
-        );
-
-      if (
-        !response.ok
-      ) {
-        throw new Error(
-          `${namaData} gagal dimuat. HTTP ${response.status}`
-        );
-      }
-
-      const text =
-        await response.text();
-
-      try {
-        return JSON.parse(text);
-      } catch (error) {
-        throw new Error(
-          `${namaData} bukan JSON yang valid`
-        );
-      }
-    }
-
-    /*
-     * =====================================================
-     * GEOJSON
-     * =====================================================
-     */
-
-    async function loadProvinsi() {
-      if (provinsiLayer) {
-        return provinsiLayer;
-      }
-
-      try {
-        const geojson =
-          await fetchJson(
-            "provinsi.geojson",
-            "Batas provinsi"
-          );
-
-        provinsiLayer =
-          L.geoJSON(
-            geojson,
-            {
-              style: {
-                color: "black",
-                weight: 1,
-                fillOpacity: 0,
-                interactive: false
-              }
-            }
-          ).addTo(map);
-
-        return provinsiLayer;
-      } catch (error) {
-        console.error(error);
-        return null;
-      }
-    }
-
-    async function loadPBPH() {
-      if (pbphLayer) {
-        return pbphLayer;
-      }
-
-      try {
-        const geojson =
-          await fetchJson(
-            "PBPH.geojson",
-            "Layer PBPH"
-          );
-
-        pbphLayer =
-          L.geoJSON(
-            geojson,
-            {
-              pane: "polygonPane",
-              interactive: true,
-              bubblingMouseEvents: false,
-
-              style: {
-                pane: "polygonPane",
-                color: "blue",
-                weight: 2,
-                opacity: 1,
-                fill: true,
-                fillColor: "blue",
-                fillOpacity: 0.08,
-                interactive: true
-              },
-
-              onEachFeature:
-                buatPopupGeoJSON("PBPH")
-            }
-          );
-
-        return pbphLayer;
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          "Layer PBPH gagal dimuat.\n\n" +
-          error.message
-        );
-
-        return null;
-      }
-    }
-
-    async function loadKebun() {
-      if (kebunLayer) {
-        return kebunLayer;
-      }
-
-      try {
-        const geojson =
-          await fetchJson(
-            "kebun.geojson",
-            "Layer kebun"
-          );
-
-        kebunLayer =
-          L.geoJSON(
-            geojson,
-            {
-              pane: "polygonPane",
-              interactive: true,
-              bubblingMouseEvents: false,
-
-              style: {
-                pane: "polygonPane",
-                color: "green",
-                weight: 2,
-                opacity: 1,
-                fill: true,
-                fillColor: "green",
-                fillOpacity: 0.10,
-                interactive: true
-              },
-
-              onEachFeature:
-                buatPopupGeoJSON("KEBUN")
-            }
-          );
-
-        return kebunLayer;
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          "Layer kebun gagal dimuat.\n\n" +
-          error.message
-        );
-
-        return null;
-      }
-    }
-
-    async function loadGambut() {
-      if (gambutLayer) {
-        return gambutLayer;
-      }
-
-      try {
-        const geojson =
-          await fetchJson(
-            "gambut.geojson",
-            "Layer gambut"
-          );
-
-        gambutLayer =
-          L.geoJSON(
-            geojson,
-            {
-              pane: "polygonPane",
-              interactive: true,
-              bubblingMouseEvents: false,
-
-              style: {
-                pane: "polygonPane",
-                color: "brown",
-                weight: 2,
-                opacity: 1,
-                fill: true,
-                fillColor: "brown",
-                fillOpacity: 0.10,
-                interactive: true
-              },
-
-              onEachFeature:
-                buatPopupGeoJSON("GAMBUT")
-            }
-          );
-
-        return gambutLayer;
-      } catch (error) {
-        console.error(error);
-
-        alert(
-          "Layer gambut gagal dimuat.\n\n" +
-          error.message
-        );
-
-        return null;
-      }
-    }
-
-    function pasangLayerListeners() {
-      document
-        .getElementById(
-          "pbph-toggle"
-        )
-        .addEventListener(
-          "change",
-          async function () {
-            if (!this.checked) {
-              if (pbphLayer) {
-                map.removeLayer(
-                  pbphLayer
-                );
-              }
-
-              return;
-            }
-
-            this.disabled = true;
-
-            const layer =
-              await loadPBPH();
-
-            this.disabled = false;
-
-            if (
-              layer &&
-              this.checked
-            ) {
-              layer.addTo(map);
-            } else if (!layer) {
-              this.checked = false;
-            }
-          }
-        );
-
-      document
-        .getElementById(
-          "kebun-toggle"
-        )
-        .addEventListener(
-          "change",
-          async function () {
-            if (!this.checked) {
-              if (kebunLayer) {
-                map.removeLayer(
-                  kebunLayer
-                );
-              }
-
-              return;
-            }
-
-            this.disabled = true;
-
-            const layer =
-              await loadKebun();
-
-            this.disabled = false;
-
-            if (
-              layer &&
-              this.checked
-            ) {
-              layer.addTo(map);
-            } else if (!layer) {
-              this.checked = false;
-            }
-          }
-        );
-
-      document
-        .getElementById(
-          "gambut-toggle"
-        )
-        .addEventListener(
-          "change",
-          async function () {
-            if (!this.checked) {
-              if (gambutLayer) {
-                map.removeLayer(
-                  gambutLayer
-                );
-              }
-
-              return;
-            }
-
-            this.disabled = true;
-
-            const layer =
-              await loadGambut();
-
-            this.disabled = false;
-
-            if (
-              layer &&
-              this.checked
-            ) {
-              layer.addTo(map);
-            } else if (!layer) {
-              this.checked = false;
-            }
-          }
-        );
-    }
-
-    /*
-     * =====================================================
-     * FILTER
-     * =====================================================
-     */
-
     function renderFilterTanggal() {
       const div =
         document.getElementById(
@@ -1603,6 +1741,12 @@
       );
     }
 
+    /*
+     * =====================================================
+     * TAMPILKAN HOTSPOT DAN POPUP HOTSPOT
+     * =====================================================
+     */
+
     function applyFilters() {
       const filter =
         getSelectedFilters();
@@ -1692,33 +1836,76 @@
                   warna,
                 color: "#000",
                 weight: 1,
-                opacity: 0.8,
-                fillOpacity: 0.65
+                opacity: 0.9,
+                fillOpacity: 0.75
               }
             );
 
-          marker.bindPopup(`
-            <b>${escapeHtml(row._waktu)}</b>
-            <br>
-            ${escapeHtml(provinsi || "-")} -
-            ${escapeHtml(kabupaten || "-")}
-            <br>
-            Kecamatan:
-            ${escapeHtml(kecamatan || "-")}
-            <br>
-            Desa:
-            ${escapeHtml(desa || "-")}
-            <br>
-            Confidence:
-            ${escapeHtml(row._confidence)}
-            <br>
-            Sumber:
-            ${escapeHtml(row._sumberNormal)}
-            <br>
-            Koordinat:
-            ${lat.toFixed(5)},
-            ${lon.toFixed(5)}
-          `);
+          const popupHotspot =
+            buatKotakPopup(
+              "INFORMASI HOTSPOT",
+              row._confidence ===
+              "high"
+                ? "#c62828"
+                : "#c49a00",
+              [
+                buatBarisPopup(
+                  "Tanggal & Jam",
+                  row._waktu
+                ),
+
+                buatBarisPopup(
+                  "Provinsi",
+                  provinsi
+                ),
+
+                buatBarisPopup(
+                  "Kab/Kota",
+                  kabupaten
+                ),
+
+                buatBarisPopup(
+                  "Kecamatan",
+                  kecamatan
+                ),
+
+                buatBarisPopup(
+                  "Desa",
+                  desa
+                ),
+
+                buatBarisPopup(
+                  "Latitude",
+                  lat.toFixed(5)
+                ),
+
+                buatBarisPopup(
+                  "Longitude",
+                  lon.toFixed(5)
+                ),
+
+                buatBarisPopup(
+                  "Confidence",
+                  row._confidence
+                    .toUpperCase()
+                ),
+
+                buatBarisPopup(
+                  "Sumber",
+                  row._sumberNormal
+                )
+              ]
+            );
+
+          marker.bindPopup(
+            popupHotspot,
+            {
+              maxWidth: 360,
+              maxHeight: 330,
+              autoPan: true,
+              closeButton: true
+            }
+          );
 
           hotspotLayer.addLayer(
             marker
@@ -1840,7 +2027,7 @@
 
     /*
      * =====================================================
-     * EKSPOR DATA UMUM
+     * EXPORT DATA UMUM
      * =====================================================
      */
 
@@ -1956,7 +2143,6 @@
           );
 
         link.href = url;
-
         link.download =
           "hotspot_nasa_3_hari.csv";
 
@@ -2450,9 +2636,11 @@
           "Total"
         ]],
 
-        body: rekapRows,
+        body:
+          rekapRows,
 
-        theme: "grid",
+        theme:
+          "grid",
 
         styles: {
           fontSize: 8
@@ -2534,7 +2722,7 @@
 
     /*
      * =====================================================
-     * LOGIN DAN INISIALISASI
+     * LOGIN DAN MULAI
      * =====================================================
      */
 
@@ -2552,6 +2740,11 @@
           "hotspot_logged_in",
           "true"
         );
+
+        document.getElementById(
+          "login-error"
+        ).style.display =
+          "none";
 
         document.getElementById(
           "login-overlay"
