@@ -115,11 +115,6 @@
       font-size: 12px;
     }
 
-    .error-message {
-      color: #b00020;
-      font-size: 12px;
-    }
-
     #jumlah-hotspot {
       margin-top: 8px;
       padding: 6px;
@@ -215,6 +210,40 @@
       display: none;
       margin-top: 10px;
       color: #ff6b6b;
+    }
+
+    .popup-layer {
+      min-width: 230px;
+      max-width: 320px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    }
+
+    .popup-title {
+      margin-bottom: 7px;
+      padding: 7px;
+      color: white;
+      background: #444;
+      border-radius: 4px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .popup-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .popup-table td {
+      padding: 5px;
+      border: 1px solid #ddd;
+      vertical-align: top;
+    }
+
+    .popup-label {
+      width: 38%;
+      background: #f2f2f2;
+      font-weight: bold;
     }
 
     @media (max-width: 600px) {
@@ -314,6 +343,7 @@
       </label>
 
       <h4>Tanggal</h4>
+
       <div id="tanggal-filter" class="filter-message">
         Memuat...
       </div>
@@ -422,6 +452,12 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+    /*
+     * ======================================================
+     * KONFIGURASI
+     * ======================================================
+     */
+
     const DATA_URL =
       "https://opensheet.elk.sh/" +
       "1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/" +
@@ -450,6 +486,12 @@
       "Desember"
     ];
 
+    /*
+     * ======================================================
+     * VARIABEL
+     * ======================================================
+     */
+
     let rawData = [];
 
     let pbphLayer = null;
@@ -459,6 +501,12 @@
 
     let aplikasiSudahDimulai = false;
     let filterListenerSudahDipasang = false;
+
+    /*
+     * ======================================================
+     * PETA
+     * ======================================================
+     */
 
     const map = L.map("map", {
       attributionControl: false,
@@ -478,7 +526,14 @@
       padding: 0.5
     });
 
-    const hotspotLayer = L.layerGroup().addTo(map);
+    const hotspotLayer =
+      L.layerGroup().addTo(map);
+
+    /*
+     * ======================================================
+     * FUNGSI UMUM
+     * ======================================================
+     */
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -503,6 +558,385 @@
 
       return "";
     }
+
+    /*
+     * Mencari atribut tanpa membedakan huruf besar,
+     * huruf kecil, spasi, dan garis bawah.
+     */
+    function ambilPropertiGeoJSON(
+      properties,
+      daftarKemungkinan
+    ) {
+      if (!properties) {
+        return "";
+      }
+
+      const normalisasi = value =>
+        String(value)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+
+      const semuaKey =
+        Object.keys(properties);
+
+      for (const kemungkinan of daftarKemungkinan) {
+        const target =
+          normalisasi(kemungkinan);
+
+        const keyDitemukan =
+          semuaKey.find(
+            key =>
+              normalisasi(key) === target
+          );
+
+        if (
+          keyDitemukan &&
+          properties[keyDitemukan] !== null &&
+          properties[keyDitemukan] !== undefined &&
+          String(
+            properties[keyDitemukan]
+          ).trim() !== ""
+        ) {
+          return String(
+            properties[keyDitemukan]
+          ).trim();
+        }
+      }
+
+      return "";
+    }
+
+    /*
+     * ======================================================
+     * POPUP ATRIBUT PENTING
+     * ======================================================
+     */
+
+    function buatPopupGeoJSON(namaLayer) {
+      return function (feature, layer) {
+        const properties =
+          feature?.properties || {};
+
+        let konfigurasiAtribut = [];
+
+        if (namaLayer === "PBPH") {
+          konfigurasiAtribut = [
+            {
+              label: "Nama",
+              keys: [
+                "NAMA",
+                "NAMOBJ",
+                "NAMA_PBPH",
+                "NAMA IUPHHK",
+                "NAMA_IUPHHK"
+              ]
+            },
+            {
+              label: "Perusahaan",
+              keys: [
+                "NAMA_PERUSAHAAN",
+                "PERUSAHAAN",
+                "COMPANY",
+                "PEMEGANG",
+                "PEMEGANG_IZIN"
+              ]
+            },
+            {
+              label: "Nomor SK",
+              keys: [
+                "NO_SK",
+                "NOSK",
+                "NOMOR_SK",
+                "SK",
+                "SK_IZIN"
+              ]
+            },
+            {
+              label: "Jenis Izin",
+              keys: [
+                "JENIS_IZIN",
+                "JNS_IZIN",
+                "JENIS",
+                "TIPE_IZIN"
+              ]
+            },
+            {
+              label: "Luas",
+              keys: [
+                "LUAS",
+                "LUAS_HA",
+                "LUAS_SK",
+                "Shape_Area"
+              ]
+            },
+            {
+              label: "Provinsi",
+              keys: [
+                "PROVINSI",
+                "PROPINSI",
+                "PROV"
+              ]
+            },
+            {
+              label: "Kabupaten",
+              keys: [
+                "KABUPATEN",
+                "KAB_KOTA",
+                "KABKOT",
+                "KAB"
+              ]
+            }
+          ];
+        }
+
+        if (namaLayer === "KEBUN") {
+          konfigurasiAtribut = [
+            {
+              label: "Nama",
+              keys: [
+                "NAMA",
+                "NAMOBJ",
+                "NAMA_KEBUN"
+              ]
+            },
+            {
+              label: "Perusahaan",
+              keys: [
+                "NAMA_PERUSAHAAN",
+                "PERUSAHAAN",
+                "COMPANY",
+                "PEMEGANG",
+                "PEMEGANG_IZIN"
+              ]
+            },
+            {
+              label: "Komoditas",
+              keys: [
+                "KOMODITAS",
+                "KOMODITI",
+                "JENIS_TANAMAN",
+                "TANAMAN"
+              ]
+            },
+            {
+              label: "Nomor SK",
+              keys: [
+                "NO_SK",
+                "NOSK",
+                "NOMOR_SK",
+                "SK",
+                "SK_IZIN"
+              ]
+            },
+            {
+              label: "Luas",
+              keys: [
+                "LUAS",
+                "LUAS_HA",
+                "LUAS_SK",
+                "Shape_Area"
+              ]
+            },
+            {
+              label: "Provinsi",
+              keys: [
+                "PROVINSI",
+                "PROPINSI",
+                "PROV"
+              ]
+            },
+            {
+              label: "Kabupaten",
+              keys: [
+                "KABUPATEN",
+                "KAB_KOTA",
+                "KABKOT",
+                "KAB"
+              ]
+            }
+          ];
+        }
+
+        if (namaLayer === "GAMBUT") {
+          konfigurasiAtribut = [
+            {
+              label: "Nama",
+              keys: [
+                "NAMA",
+                "NAMOBJ",
+                "NAMA_KHG",
+                "KHG"
+              ]
+            },
+            {
+              label: "Fungsi",
+              keys: [
+                "FUNGSI",
+                "FUNGSI_EKOSISTEM",
+                "KAWASAN"
+              ]
+            },
+            {
+              label: "Kesatuan Hidrologis",
+              keys: [
+                "NAMA_KHG",
+                "KESATUAN_HIDROLOGIS",
+                "KHG"
+              ]
+            },
+            {
+              label: "Luas",
+              keys: [
+                "LUAS",
+                "LUAS_HA",
+                "Shape_Area"
+              ]
+            },
+            {
+              label: "Provinsi",
+              keys: [
+                "PROVINSI",
+                "PROPINSI",
+                "PROV"
+              ]
+            },
+            {
+              label: "Kabupaten",
+              keys: [
+                "KABUPATEN",
+                "KAB_KOTA",
+                "KABKOT",
+                "KAB"
+              ]
+            }
+          ];
+        }
+
+        const atributTerpilih = [];
+
+        konfigurasiAtribut.forEach(item => {
+          const nilai =
+            ambilPropertiGeoJSON(
+              properties,
+              item.keys
+            );
+
+          if (nilai) {
+            atributTerpilih.push({
+              label: item.label,
+              nilai
+            });
+          }
+        });
+
+        /*
+         * Jika nama tidak ditemukan dari daftar alias,
+         * cari nilai pertama yang mengandung kata nama.
+         */
+        if (
+          !atributTerpilih.some(
+            item => item.label === "Nama"
+          )
+        ) {
+          const keyNama =
+            Object.keys(properties).find(
+              key =>
+                key.toLowerCase().includes("nama") &&
+                properties[key] !== null &&
+                String(properties[key]).trim() !== ""
+            );
+
+          if (keyNama) {
+            atributTerpilih.unshift({
+              label: "Nama",
+              nilai: String(
+                properties[keyNama]
+              ).trim()
+            });
+          }
+        }
+
+        let isi = `
+          <div class="popup-layer">
+            <div class="popup-title">
+              INFORMASI ${escapeHtml(namaLayer)}
+            </div>
+        `;
+
+        if (atributTerpilih.length === 0) {
+          isi += `
+            <div>
+              Atribut penting tidak ditemukan.
+            </div>
+          `;
+        } else {
+          isi += `<table class="popup-table">`;
+
+          atributTerpilih.forEach(item => {
+            isi += `
+              <tr>
+                <td class="popup-label">
+                  ${escapeHtml(item.label)}
+                </td>
+                <td>
+                  ${escapeHtml(item.nilai)}
+                </td>
+              </tr>
+            `;
+          });
+
+          isi += `</table>`;
+        }
+
+        isi += `</div>`;
+
+        layer.bindPopup(isi, {
+          maxWidth: 350,
+          maxHeight: 320
+        });
+
+        layer.on({
+          mouseover: function () {
+            this.setStyle({
+              weight: 4,
+              fillOpacity: 0.35
+            });
+          },
+
+          mouseout: function () {
+            if (namaLayer === "PBPH") {
+              this.setStyle({
+                color: "blue",
+                weight: 1,
+                fillOpacity: 0
+              });
+            }
+
+            if (namaLayer === "KEBUN") {
+              this.setStyle({
+                color: "green",
+                weight: 2,
+                fillOpacity: 0.1
+              });
+            }
+
+            if (namaLayer === "GAMBUT") {
+              this.setStyle({
+                color: "brown",
+                weight: 2,
+                fillOpacity: 0.1
+              });
+            }
+          }
+        });
+      };
+    }
+
+    /*
+     * ======================================================
+     * DATA HOTSPOT
+     * ======================================================
+     */
 
     function normalisasiSumber(value) {
       const kode = String(value || "")
@@ -532,7 +966,6 @@
         ambilNilai(row, [
           "Sumber",
           "sumber",
-          "SUMBER",
           "Source",
           "source",
           "Satelit",
@@ -546,7 +979,6 @@
       const value = ambilNilai(row, [
         "Latitude",
         "latitude",
-        "LATITUDE",
         "Lat",
         "lat"
       ]);
@@ -560,7 +992,6 @@
       const value = ambilNilai(row, [
         "Longitude",
         "longitude",
-        "LONGITUDE",
         "Lng",
         "lng",
         "Lon",
@@ -623,20 +1054,22 @@
       );
 
       if (indonesia) {
-        const tanggal = String(
-          parseInt(indonesia[1], 10)
-        ).padStart(2, "0");
+        const tanggal =
+          String(
+            parseInt(indonesia[1], 10)
+          ).padStart(2, "0");
 
-        const bulanIndex = NAMA_BULAN.findIndex(
-          bulan =>
-            bulan.toLowerCase() ===
-            indonesia[2].toLowerCase()
-        );
+        const bulan =
+          NAMA_BULAN.find(
+            value =>
+              value.toLowerCase() ===
+              indonesia[2].toLowerCase()
+          );
 
         return (
           tanggal +
           " " +
-          NAMA_BULAN[bulanIndex] +
+          bulan +
           " " +
           indonesia[3]
         );
@@ -648,9 +1081,13 @@
 
       if (iso) {
         return (
-          String(parseInt(iso[3], 10)).padStart(2, "0") +
+          String(
+            parseInt(iso[3], 10)
+          ).padStart(2, "0") +
           " " +
-          NAMA_BULAN[parseInt(iso[2], 10) - 1] +
+          NAMA_BULAN[
+            parseInt(iso[2], 10) - 1
+          ] +
           " " +
           iso[1]
         );
@@ -662,9 +1099,13 @@
 
       if (angka) {
         return (
-          String(parseInt(angka[1], 10)).padStart(2, "0") +
+          String(
+            parseInt(angka[1], 10)
+          ).padStart(2, "0") +
           " " +
-          NAMA_BULAN[parseInt(angka[2], 10) - 1] +
+          NAMA_BULAN[
+            parseInt(angka[2], 10) - 1
+          ] +
           " " +
           angka[3]
         );
@@ -672,11 +1113,9 @@
 
       const date = new Date(text);
 
-      if (!isNaN(date.getTime())) {
-        return formatTanggalIndonesia(date);
-      }
-
-      return "";
+      return !isNaN(date.getTime())
+        ? formatTanggalIndonesia(date)
+        : "";
     }
 
     function getLastThreeDates() {
@@ -717,6 +1156,12 @@
         );
       }
     }
+
+    /*
+     * ======================================================
+     * PEMUATAN GEOJSON
+     * ======================================================
+     */
 
     async function loadProvinsi() {
       if (provinsiLayer) {
@@ -760,13 +1205,21 @@
             color: "blue",
             weight: 1,
             fillOpacity: 0
-          }
+          },
+
+          onEachFeature:
+            buatPopupGeoJSON("PBPH")
         });
 
         return pbphLayer;
       } catch (error) {
         console.error(error);
-        alert("Layer PBPH gagal dimuat.\n\n" + error.message);
+
+        alert(
+          "Layer PBPH gagal dimuat.\n\n" +
+          error.message
+        );
+
         return null;
       }
     }
@@ -787,13 +1240,21 @@
             color: "green",
             weight: 2,
             fillOpacity: 0.1
-          }
+          },
+
+          onEachFeature:
+            buatPopupGeoJSON("KEBUN")
         });
 
         return kebunLayer;
       } catch (error) {
         console.error(error);
-        alert("Layer kebun gagal dimuat.\n\n" + error.message);
+
+        alert(
+          "Layer kebun gagal dimuat.\n\n" +
+          error.message
+        );
+
         return null;
       }
     }
@@ -814,13 +1275,21 @@
             color: "brown",
             weight: 2,
             fillOpacity: 0.1
-          }
+          },
+
+          onEachFeature:
+            buatPopupGeoJSON("GAMBUT")
         });
 
         return gambutLayer;
       } catch (error) {
         console.error(error);
-        alert("Layer gambut gagal dimuat.\n\n" + error.message);
+
+        alert(
+          "Layer gambut gagal dimuat.\n\n" +
+          error.message
+        );
+
         return null;
       }
     }
@@ -828,96 +1297,117 @@
     function pasangLayerListeners() {
       document
         .getElementById("pbph-toggle")
-        .addEventListener("change", async function () {
-          if (!this.checked) {
-            if (pbphLayer) {
-              map.removeLayer(pbphLayer);
+        .addEventListener(
+          "change",
+          async function () {
+            if (!this.checked) {
+              if (pbphLayer) {
+                map.removeLayer(pbphLayer);
+              }
+
+              return;
             }
 
-            return;
+            this.disabled = true;
+
+            const layer =
+              await loadPBPH();
+
+            this.disabled = false;
+
+            if (layer && this.checked) {
+              layer.addTo(map);
+            } else if (!layer) {
+              this.checked = false;
+            }
           }
-
-          this.disabled = true;
-
-          const layer = await loadPBPH();
-
-          this.disabled = false;
-
-          if (layer && this.checked) {
-            layer.addTo(map);
-          } else if (!layer) {
-            this.checked = false;
-          }
-        });
+        );
 
       document
         .getElementById("kebun-toggle")
-        .addEventListener("change", async function () {
-          if (!this.checked) {
-            if (kebunLayer) {
-              map.removeLayer(kebunLayer);
+        .addEventListener(
+          "change",
+          async function () {
+            if (!this.checked) {
+              if (kebunLayer) {
+                map.removeLayer(kebunLayer);
+              }
+
+              return;
             }
 
-            return;
+            this.disabled = true;
+
+            const layer =
+              await loadKebun();
+
+            this.disabled = false;
+
+            if (layer && this.checked) {
+              layer.addTo(map);
+            } else if (!layer) {
+              this.checked = false;
+            }
           }
-
-          this.disabled = true;
-
-          const layer = await loadKebun();
-
-          this.disabled = false;
-
-          if (layer && this.checked) {
-            layer.addTo(map);
-          } else if (!layer) {
-            this.checked = false;
-          }
-        });
+        );
 
       document
         .getElementById("gambut-toggle")
-        .addEventListener("change", async function () {
-          if (!this.checked) {
-            if (gambutLayer) {
-              map.removeLayer(gambutLayer);
+        .addEventListener(
+          "change",
+          async function () {
+            if (!this.checked) {
+              if (gambutLayer) {
+                map.removeLayer(gambutLayer);
+              }
+
+              return;
             }
 
-            return;
+            this.disabled = true;
+
+            const layer =
+              await loadGambut();
+
+            this.disabled = false;
+
+            if (layer && this.checked) {
+              layer.addTo(map);
+            } else if (!layer) {
+              this.checked = false;
+            }
           }
-
-          this.disabled = true;
-
-          const layer = await loadGambut();
-
-          this.disabled = false;
-
-          if (layer && this.checked) {
-            layer.addTo(map);
-          } else if (!layer) {
-            this.checked = false;
-          }
-        });
+        );
     }
+
+    /*
+     * ======================================================
+     * FILTER DAN MARKER
+     * ======================================================
+     */
 
     function renderFilterTanggal() {
       const div =
-        document.getElementById("tanggal-filter");
+        document.getElementById(
+          "tanggal-filter"
+        );
 
       div.className = "";
 
-      div.innerHTML = getLastThreeDates()
-        .map(tanggal => `
-          <label>
-            <input
-              type="checkbox"
-              class="tanggal-filter"
-              value="${escapeHtml(tanggal)}"
-              checked
-            >
-            ${escapeHtml(tanggal)}
-          </label>
-        `)
-        .join("");
+      div.innerHTML =
+        getLastThreeDates()
+          .map(tanggal => `
+            <label>
+              <input
+                type="checkbox"
+                class="tanggal-filter"
+                value="${escapeHtml(tanggal)}"
+                checked
+              >
+              ${escapeHtml(tanggal)}
+            </label>
+          `)
+          .join("");
     }
 
     function getSelectedFilters() {
@@ -943,26 +1433,44 @@
     }
 
     function siapkanData(row) {
-      row._latitude = ambilLatitude(row);
-      row._longitude = ambilLongitude(row);
-      row._confidence = ambilConfidence(row);
-      row._waktu = ambilWaktu(row);
-      row._tanggalFilter = extractTanggal(row._waktu);
-      row._sumberNormal = ambilSumber(row);
+      row._latitude =
+        ambilLatitude(row);
+
+      row._longitude =
+        ambilLongitude(row);
+
+      row._confidence =
+        ambilConfidence(row);
+
+      row._waktu =
+        ambilWaktu(row);
+
+      row._tanggalFilter =
+        extractTanggal(row._waktu);
+
+      row._sumberNormal =
+        ambilSumber(row);
 
       return row;
     }
 
     function dataSesuaiFilter(row, filter) {
       return (
-        filter.levels.includes(row._confidence) &&
-        filter.tanggal.includes(row._tanggalFilter) &&
-        filter.sumber.includes(row._sumberNormal)
+        filter.levels.includes(
+          row._confidence
+        ) &&
+        filter.tanggal.includes(
+          row._tanggalFilter
+        ) &&
+        filter.sumber.includes(
+          row._sumberNormal
+        )
       );
     }
 
     function getFilteredData() {
-      const filter = getSelectedFilters();
+      const filter =
+        getSelectedFilters();
 
       return rawData.filter(row =>
         dataSesuaiFilter(row, filter)
@@ -970,19 +1478,25 @@
     }
 
     function applyFilters() {
-      const filter = getSelectedFilters();
+      const filter =
+        getSelectedFilters();
 
       hotspotLayer.clearLayers();
 
       let jumlah = 0;
 
       rawData.forEach(row => {
-        if (!dataSesuaiFilter(row, filter)) {
+        if (
+          !dataSesuaiFilter(row, filter)
+        ) {
           return;
         }
 
-        const lat = row._latitude;
-        const lon = row._longitude;
+        const lat =
+          row._latitude;
+
+        const lon =
+          row._longitude;
 
         if (
           !Number.isFinite(lat) ||
@@ -1038,15 +1552,21 @@
           ${escapeHtml(provinsi || "-")} -
           ${escapeHtml(kabupaten || "-")}
           <br>
-          Kecamatan: ${escapeHtml(kecamatan || "-")}
+          Kecamatan:
+          ${escapeHtml(kecamatan || "-")}
           <br>
-          Desa: ${escapeHtml(desa || "-")}
+          Desa:
+          ${escapeHtml(desa || "-")}
           <br>
-          Confidence: ${escapeHtml(row._confidence)}
+          Confidence:
+          ${escapeHtml(row._confidence)}
           <br>
-          Sumber: ${escapeHtml(row._sumberNormal)}
+          Sumber:
+          ${escapeHtml(row._sumberNormal)}
           <br>
-          Koordinat: ${lat.toFixed(5)}, ${lon.toFixed(5)}
+          Koordinat:
+          ${lat.toFixed(5)},
+          ${lon.toFixed(5)}
         `);
 
         hotspotLayer.addLayer(marker);
@@ -1055,7 +1575,8 @@
 
       document.getElementById(
         "jumlah-hotspot"
-      ).textContent = `${jumlah} hotspot ditampilkan`;
+      ).textContent =
+        `${jumlah} hotspot ditampilkan`;
     }
 
     function pasangFilterListeners() {
@@ -1063,22 +1584,33 @@
         return;
       }
 
-      document.addEventListener("change", event => {
-        if (
-          event.target.matches(".confidence-filter") ||
-          event.target.matches(".tanggal-filter") ||
-          event.target.matches(".sumber-filter")
-        ) {
-          applyFilters();
+      document.addEventListener(
+        "change",
+        event => {
+          if (
+            event.target.matches(
+              ".confidence-filter"
+            ) ||
+            event.target.matches(
+              ".tanggal-filter"
+            ) ||
+            event.target.matches(
+              ".sumber-filter"
+            )
+          ) {
+            applyFilters();
+          }
         }
-      });
+      );
 
       filterListenerSudahDipasang = true;
     }
 
     async function fetchAndRenderData() {
       const jumlahElement =
-        document.getElementById("jumlah-hotspot");
+        document.getElementById(
+          "jumlah-hotspot"
+        );
 
       try {
         jumlahElement.textContent =
@@ -1091,11 +1623,11 @@
 
         if (!Array.isArray(data)) {
           throw new Error(
-            "Respons data hotspot bukan array"
+            "Respons data bukan array"
           );
         }
 
-        const tanggalTigaHari =
+        const tigaTanggal =
           new Set(getLastThreeDates());
 
         rawData = data
@@ -1108,17 +1640,23 @@
               row._confidence === "medium" ||
               row._confidence === "high"
             ) &&
-            tanggalTigaHari.has(
+            tigaTanggal.has(
               row._tanggalFilter
             ) &&
-            Number.isFinite(row._latitude) &&
-            Number.isFinite(row._longitude)
+            Number.isFinite(
+              row._latitude
+            ) &&
+            Number.isFinite(
+              row._longitude
+            )
           );
 
         renderFilterTanggal();
         pasangFilterListeners();
 
-        requestAnimationFrame(applyFilters);
+        requestAnimationFrame(
+          applyFilters
+        );
       } catch (error) {
         console.error(error);
 
@@ -1132,18 +1670,39 @@
       }
     }
 
+    /*
+     * ======================================================
+     * EKSPOR DATA UMUM
+     * ======================================================
+     */
+
     function buatDataEkspor(data) {
       return data.map(row => ({
         "Tanggal & Jam": row._waktu,
-        "Provinsi": ambilNilai(row, ["Provinsi", "provinsi"]),
+
+        "Provinsi": ambilNilai(row, [
+          "Provinsi",
+          "provinsi"
+        ]),
+
         "Kab/Kota": ambilNilai(row, [
           "Kab/Kota",
           "Kabupaten/Kota",
           "Kabupaten",
           "Kota"
         ]),
-        "Kecamatan": ambilNilai(row, ["Kecamatan", "kecamatan"]),
-        "Desa": ambilNilai(row, ["Desa", "desa", "Kelurahan"]),
+
+        "Kecamatan": ambilNilai(row, [
+          "Kecamatan",
+          "kecamatan"
+        ]),
+
+        "Desa": ambilNilai(row, [
+          "Desa",
+          "desa",
+          "Kelurahan"
+        ]),
+
         "Latitude": row._latitude,
         "Longitude": row._longitude,
         "Confidence": row._confidence,
@@ -1152,12 +1711,16 @@
     }
 
     function exportTable(format) {
-      const data = buatDataEkspor(
-        getFilteredData()
-      );
+      const data =
+        buatDataEkspor(
+          getFilteredData()
+        );
 
       if (data.length === 0) {
-        alert("Tidak ada data sesuai filter.");
+        alert(
+          "Tidak ada data sesuai filter."
+        );
+
         return;
       }
 
@@ -1166,9 +1729,12 @@
           XLSX.utils.json_to_sheet(data);
 
         const csv =
-          XLSX.utils.sheet_to_csv(sheet, {
-            FS: ";"
-          });
+          XLSX.utils.sheet_to_csv(
+            sheet,
+            {
+              FS: ";"
+            }
+          );
 
         const blob = new Blob(
           ["\uFEFF" + csv],
@@ -1184,7 +1750,9 @@
           document.createElement("a");
 
         link.href = url;
-        link.download = "hotspot_nasa_3_hari.csv";
+        link.download =
+          "hotspot_nasa_3_hari.csv";
+
         link.click();
 
         URL.revokeObjectURL(url);
@@ -1213,11 +1781,13 @@
       }
 
       if (format === "pdf") {
-        const { jsPDF } = window.jspdf;
+        const { jsPDF } =
+          window.jspdf;
 
-        const doc = new jsPDF({
-          orientation: "landscape"
-        });
+        const doc =
+          new jsPDF({
+            orientation: "landscape"
+          });
 
         doc.text(
           "Data Hotspot NASA - 3 Hari",
@@ -1257,79 +1827,84 @@
           }
         });
 
-        doc.save("hotspot_nasa_3_hari.pdf");
+        doc.save(
+          "hotspot_nasa_3_hari.pdf"
+        );
       }
     }
 
+    /*
+     * ======================================================
+     * PDF HOTSPOT PBPH DAN KEBUN
+     * ======================================================
+     */
+
     function cariNamaPerusahaan(properties) {
-      const daftar = [
-        "NAMA",
-        "Nama",
-        "nama",
-        "NAMA_PERUSAHAAN",
-        "Nama_Perusahaan",
-        "PERUSAHAAN",
-        "Perusahaan",
-        "COMPANY",
-        "Company",
-        "PEMEGANG",
-        "NAMOBJ"
-      ];
-
-      for (const nama of daftar) {
-        if (
-          properties &&
-          properties[nama] !== undefined &&
-          properties[nama] !== null &&
-          String(properties[nama]).trim() !== ""
-        ) {
-          return String(properties[nama]).trim();
-        }
-      }
-
-      return "Tidak diketahui";
+      return (
+        ambilPropertiGeoJSON(
+          properties,
+          [
+            "NAMA_PERUSAHAAN",
+            "PERUSAHAAN",
+            "PEMEGANG",
+            "PEMEGANG_IZIN",
+            "COMPANY",
+            "NAMA",
+            "NAMOBJ",
+            "NAMA_PBPH",
+            "NAMA_KEBUN"
+          ]
+        ) ||
+        "Tidak diketahui"
+      );
     }
 
     async function exportPerusahaanPDF(type) {
-      const isPBPH = type === "pbph";
+      const isPBPH =
+        type === "pbph";
 
-      const namaLayer = isPBPH
-        ? "PBPH"
-        : "Kebun";
-
-      const toggle = document.getElementById(
+      const namaLayer =
         isPBPH
-          ? "pbph-toggle"
-          : "kebun-toggle"
-      );
+          ? "PBPH"
+          : "Kebun";
 
-      const layer = isPBPH
-        ? pbphLayer
-        : kebunLayer;
+      const toggle =
+        document.getElementById(
+          isPBPH
+            ? "pbph-toggle"
+            : "kebun-toggle"
+        );
 
-      /*
-       * Wajib dicentang agar PDF dapat dibuat.
-       */
+      const layer =
+        isPBPH
+          ? pbphLayer
+          : kebunLayer;
+
       if (!toggle.checked) {
         alert(
-          `Centang Layer Tambahan ${namaLayer} ` +
-          "terlebih dahulu."
+          `Centang Layer ${namaLayer} terlebih dahulu.`
         );
 
         return;
       }
 
-      if (!layer || !map.hasLayer(layer)) {
+      if (
+        !layer ||
+        !map.hasLayer(layer)
+      ) {
         alert(
           `Layer ${namaLayer} masih dimuat.\n\n` +
-          "Tunggu sampai layer muncul di peta, " +
-          "kemudian klik kembali tombol PDF."
+          "Tunggu sampai polygon muncul."
         );
 
         return;
       }
 
-      const filter = getSelectedFilters();
+      const filter =
+        getSelectedFilters();
+
+      const filtered =
+        getFilteredData();
 
       if (
         filter.levels.length === 0 ||
@@ -1337,104 +1912,92 @@
         filter.sumber.length === 0
       ) {
         alert(
-          "Pilih minimal satu tanggal, confidence, " +
-          "dan sumber citra."
+          "Pilih tanggal, confidence, dan sumber citra."
         );
 
         return;
       }
-
-      const filtered =
-        getFilteredData();
 
       if (filtered.length === 0) {
         alert(
-          "Tidak ada hotspot sesuai filter yang dicentang."
+          "Tidak ada hotspot sesuai filter."
         );
 
         return;
       }
 
-      document.getElementById(
-        "jumlah-hotspot"
-      ).textContent =
-        `Memeriksa hotspot dalam ${namaLayer}...`;
-
-      /*
-       * Siapkan polygon satu kali supaya lebih cepat.
-       */
       const polygons = [];
 
-      layer.eachLayer(polygonLayer => {
-        if (
-          !polygonLayer ||
-          typeof polygonLayer.toGeoJSON !== "function"
-        ) {
-          return;
+      layer.eachLayer(
+        polygonLayer => {
+          if (
+            typeof polygonLayer.toGeoJSON !==
+            "function"
+          ) {
+            return;
+          }
+
+          const geojson =
+            polygonLayer.toGeoJSON();
+
+          const tipe =
+            geojson?.geometry?.type;
+
+          if (
+            tipe !== "Polygon" &&
+            tipe !== "MultiPolygon"
+          ) {
+            return;
+          }
+
+          const properties =
+            polygonLayer.feature
+              ?.properties ||
+            geojson.properties ||
+            {};
+
+          polygons.push({
+            nama:
+              cariNamaPerusahaan(
+                properties
+              ),
+
+            geojson,
+
+            bbox:
+              turf.bbox(geojson)
+          });
         }
-
-        const geojson =
-          polygonLayer.toGeoJSON();
-
-        const tipe =
-          geojson?.geometry?.type;
-
-        if (
-          tipe !== "Polygon" &&
-          tipe !== "MultiPolygon"
-        ) {
-          return;
-        }
-
-        const properties =
-          polygonLayer.feature?.properties ||
-          geojson.properties ||
-          {};
-
-        let bbox = null;
-
-        try {
-          bbox = turf.bbox(geojson);
-        } catch (error) {
-          console.warn(error);
-        }
-
-        polygons.push({
-          nama: cariNamaPerusahaan(properties),
-          geojson,
-          bbox
-        });
-      });
+      );
 
       const rekap = {};
       const detail = [];
 
       filtered.forEach(row => {
-        const lat = row._latitude;
-        const lon = row._longitude;
+        const lat =
+          row._latitude;
 
-        const point = turf.point([
-          lon,
-          lat
-        ]);
+        const lon =
+          row._longitude;
+
+        const point =
+          turf.point([lon, lat]);
 
         polygons.forEach(item => {
-          if (item.bbox) {
-            const [
-              minLon,
-              minLat,
-              maxLon,
-              maxLat
-            ] = item.bbox;
+          const [
+            minLon,
+            minLat,
+            maxLon,
+            maxLat
+          ] = item.bbox;
 
-            if (
-              lon < minLon ||
-              lon > maxLon ||
-              lat < minLat ||
-              lat > maxLat
-            ) {
-              return;
-            }
+          if (
+            lon < minLon ||
+            lon > maxLon ||
+            lat < minLat ||
+            lat > maxLat
+          ) {
+            return;
           }
 
           let diDalam = false;
@@ -1446,7 +2009,6 @@
                 item.geojson
               );
           } catch (error) {
-            console.warn(error);
             return;
           }
 
@@ -1470,62 +2032,74 @@
 
           nilai.total++;
 
-          if (row._sumberNormal === "NASA-MODIS") {
+          if (
+            row._sumberNormal ===
+            "NASA-MODIS"
+          ) {
             nilai.modis++;
           }
 
-          if (row._sumberNormal === "NASA-NOAA20") {
+          if (
+            row._sumberNormal ===
+            "NASA-NOAA20"
+          ) {
             nilai.noaa20++;
           }
 
-          if (row._sumberNormal === "NASA-SNPP") {
+          if (
+            row._sumberNormal ===
+            "NASA-SNPP"
+          ) {
             nilai.snpp++;
           }
 
-          if (row._confidence === "medium") {
+          if (
+            row._confidence ===
+            "medium"
+          ) {
             nilai.medium++;
           }
 
-          if (row._confidence === "high") {
+          if (
+            row._confidence ===
+            "high"
+          ) {
             nilai.high++;
           }
 
           detail.push({
-            perusahaan: item.nama,
+            nama: item.nama,
             waktu: row._waktu,
-            provinsi: ambilNilai(row, [
-              "Provinsi",
-              "provinsi"
-            ]),
-            kabupaten: ambilNilai(row, [
-              "Kab/Kota",
-              "Kabupaten/Kota",
-              "Kabupaten",
-              "Kota"
-            ]),
-            kecamatan: ambilNilai(row, [
-              "Kecamatan",
-              "kecamatan"
-            ]),
-            desa: ambilNilai(row, [
-              "Desa",
-              "desa",
-              "Kelurahan"
-            ]),
+
+            provinsi:
+              ambilNilai(row, [
+                "Provinsi",
+                "provinsi"
+              ]),
+
+            kabupaten:
+              ambilNilai(row, [
+                "Kab/Kota",
+                "Kabupaten/Kota",
+                "Kabupaten",
+                "Kota"
+              ]),
+
             lat,
             lon,
-            confidence: row._confidence,
-            sumber: row._sumberNormal
+
+            confidence:
+              row._confidence,
+
+            sumber:
+              row._sumberNormal
           });
         });
       });
 
-      applyFilters();
-
       if (detail.length === 0) {
         alert(
-          `Tidak ditemukan hotspot di dalam ${namaLayer} ` +
-          "sesuai filter yang dicentang."
+          `Tidak ditemukan hotspot di dalam ${namaLayer}.`
         );
 
         return;
@@ -1533,50 +2107,33 @@
 
       const rekapRows =
         Object.entries(rekap)
-          .sort((a, b) =>
-            b[1].total - a[1].total
+          .sort(
+            (a, b) =>
+              b[1].total -
+              a[1].total
           )
-          .map(([nama, nilai], index) => [
-            index + 1,
-            nama,
-            nilai.modis,
-            nilai.noaa20,
-            nilai.snpp,
-            nilai.medium,
-            nilai.high,
-            nilai.total
-          ]);
-
-      detail.sort((a, b) =>
-        a.perusahaan.localeCompare(
-          b.perusahaan,
-          "id"
-        )
-      );
-
-      const detailRows =
-        detail.map((item, index) => [
-          index + 1,
-          item.perusahaan,
-          item.waktu,
-          item.provinsi,
-          item.kabupaten,
-          item.kecamatan,
-          item.desa,
-          item.lat.toFixed(5),
-          item.lon.toFixed(5),
-          item.confidence.toUpperCase(),
-          item.sumber
-        ]);
+          .map(
+            ([nama, nilai], index) => [
+              index + 1,
+              nama,
+              nilai.modis,
+              nilai.noaa20,
+              nilai.snpp,
+              nilai.medium,
+              nilai.high,
+              nilai.total
+            ]
+          );
 
       const { jsPDF } =
         window.jspdf;
 
-      const doc = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4"
-      });
+      const doc =
+        new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4"
+        });
 
       doc.setFontSize(15);
 
@@ -1596,7 +2153,9 @@
 
       doc.text(
         `Confidence: ${filter.levels
-          .map(value => value.toUpperCase())
+          .map(value =>
+            value.toUpperCase()
+          )
           .join(", ")}`,
         14,
         26
@@ -1614,18 +2173,12 @@
         36
       );
 
-      doc.text(
-        `Jumlah perusahaan: ${rekapRows.length}`,
-        80,
-        36
-      );
-
       doc.autoTable({
         startY: 41,
 
         head: [[
           "No.",
-          "Perusahaan",
+          "Nama/Perusahaan",
           "MODIS",
           "NOAA20",
           "SNPP",
@@ -1635,166 +2188,97 @@
         ]],
 
         body: rekapRows,
+
         theme: "grid",
 
         styles: {
-          fontSize: 8,
-          cellPadding: 1.8
+          fontSize: 8
         },
 
         headStyles: {
-          fillColor: isPBPH
-            ? [30, 90, 180]
-            : [30, 130, 70],
-          halign: "center"
-        },
-
-        columnStyles: {
-          0: {
-            cellWidth: 12,
-            halign: "center"
-          },
-          1: {
-            cellWidth: 100
-          },
-          2: {
-            halign: "center"
-          },
-          3: {
-            halign: "center"
-          },
-          4: {
-            halign: "center"
-          },
-          5: {
-            halign: "center"
-          },
-          6: {
-            halign: "center"
-          },
-          7: {
-            halign: "center",
-            fontStyle: "bold"
-          }
+          fillColor:
+            isPBPH
+              ? [30,90,180]
+              : [30,130,70]
         }
       });
 
-      doc.addPage("a4", "landscape");
+      doc.addPage(
+        "a4",
+        "landscape"
+      );
 
       doc.setFontSize(13);
 
       doc.text(
-        `DETAIL HOTSPOT DI DALAM ${namaLayer.toUpperCase()}`,
+        `DETAIL HOTSPOT ${namaLayer.toUpperCase()}`,
         14,
         14
       );
 
-      doc.setFontSize(9);
-
-      doc.text(
-        `Total: ${detail.length} hotspot`,
-        14,
-        20
-      );
-
       doc.autoTable({
-        startY: 25,
+        startY: 20,
 
         head: [[
           "No.",
-          "Perusahaan",
+          "Nama/Perusahaan",
           "Tanggal & Jam",
           "Provinsi",
           "Kab/Kota",
-          "Kecamatan",
-          "Desa",
           "Latitude",
           "Longitude",
           "Confidence",
           "Sumber"
         ]],
 
-        body: detailRows,
-        theme: "grid",
+        body: detail.map(
+          (item, index) => [
+            index + 1,
+            item.nama,
+            item.waktu,
+            item.provinsi,
+            item.kabupaten,
+            item.lat.toFixed(5),
+            item.lon.toFixed(5),
+            item.confidence.toUpperCase(),
+            item.sumber
+          ]
+        ),
 
         styles: {
-          fontSize: 6,
-          cellPadding: 1.2,
-          overflow: "linebreak"
+          fontSize: 7
         },
 
         headStyles: {
-          fillColor: isPBPH
-            ? [30, 90, 180]
-            : [30, 130, 70],
-          halign: "center"
-        },
-
-        columnStyles: {
-          0: {
-            cellWidth: 9,
-            halign: "center"
-          },
-          1: {
-            cellWidth: 40
-          },
-          2: {
-            cellWidth: 28
-          },
-          3: {
-            cellWidth: 22
-          },
-          4: {
-            cellWidth: 25
-          },
-          5: {
-            cellWidth: 22
-          },
-          6: {
-            cellWidth: 22
-          },
-          7: {
-            cellWidth: 18,
-            halign: "center"
-          },
-          8: {
-            cellWidth: 18,
-            halign: "center"
-          },
-          9: {
-            cellWidth: 17,
-            halign: "center"
-          },
-          10: {
-            cellWidth: 19,
-            halign: "center"
-          }
+          fillColor:
+            isPBPH
+              ? [30,90,180]
+              : [30,130,70]
         }
       });
 
-      const tanggalFile =
-        new Date()
-          .toISOString()
-          .slice(0, 10);
-
       doc.save(
-        `rekap_hotspot_${type}_${tanggalFile}.pdf`
+        `rekap_hotspot_${type}.pdf`
       );
     }
 
+    /*
+     * ======================================================
+     * LOGIN DAN INISIALISASI
+     * ======================================================
+     */
+
     function checkPassword() {
       const input =
-        document.getElementById("password-input");
+        document.getElementById(
+          "password-input"
+        );
 
       if (input.value === PASSWORD) {
         localStorage.setItem(
           "hotspot_logged_in",
           "true"
         );
-
-        document.getElementById(
-          "login-error"
-        ).style.display = "none";
 
         document.getElementById(
           "login-overlay"
@@ -1821,47 +2305,65 @@
       pasangLayerListeners();
 
       /*
-       * Hotspot didahulukan agar cepat muncul.
+       * Hotspot dimuat terlebih dahulu.
        */
       await fetchAndRenderData();
 
       /*
        * Batas provinsi dimuat setelah hotspot.
-       * PBPH, kebun, dan gambut baru dimuat saat dicentang.
        */
-      setTimeout(loadProvinsi, 100);
+      setTimeout(
+        loadProvinsi,
+        100
+      );
 
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 200);
+      setTimeout(
+        () => map.invalidateSize(),
+        200
+      );
     }
 
     document
-      .getElementById("password-input")
-      .addEventListener("keydown", event => {
-        if (event.key === "Enter") {
-          checkPassword();
+      .getElementById(
+        "password-input"
+      )
+      .addEventListener(
+        "keydown",
+        event => {
+          if (
+            event.key === "Enter"
+          ) {
+            checkPassword();
+          }
         }
-      });
+      );
 
-    window.addEventListener("load", () => {
-      const loggedIn =
-        localStorage.getItem(
-          "hotspot_logged_in"
-        );
+    window.addEventListener(
+      "load",
+      () => {
+        const loggedIn =
+          localStorage.getItem(
+            "hotspot_logged_in"
+          );
 
-      if (loggedIn === "true") {
-        document.getElementById(
-          "login-overlay"
-        ).style.display = "none";
+        if (
+          loggedIn === "true"
+        ) {
+          document.getElementById(
+            "login-overlay"
+          ).style.display =
+            "none";
 
-        init();
-      } else {
-        document.getElementById(
-          "password-input"
-        ).focus();
+          init();
+        } else {
+          document
+            .getElementById(
+              "password-input"
+            )
+            .focus();
+        }
       }
-    });
+    );
   </script>
 
 </body>
