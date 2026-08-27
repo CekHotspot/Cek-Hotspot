@@ -452,33 +452,6 @@
       "Desember"
     ];
 
-    const DAFTAR_NAMA_PERUSAHAAN = [
-      "Nama_Perusahaan",
-      "NAMA_PERUSAHAAN",
-      "nama_perusahaan",
-      "Nama_Perus",
-      "NAMA_PERUS",
-      "nama_perus",
-      "Nama_Peru",
-      "NAMA_PERU",
-      "nama_peru",
-      "NamaPerus",
-      "NAMAPERUS",
-      "namaperus",
-      "NamaPersh",
-      "NAMAPERSH",
-      "namapersh",
-      "Perusahaan",
-      "PERUSAHAAN",
-      "perusahaan",
-      "Pemegang",
-      "PEMEGANG",
-      "pemegang",
-      "Company",
-      "COMPANY",
-      "company"
-    ];
-
     let rawData = [];
 
     let provinsiLayer = null;
@@ -509,17 +482,11 @@
       }
     ).addTo(map);
 
-    /*
-     * Hotspot memakai Canvas agar ringan.
-     */
     const hotspotRenderer =
       L.canvas({
         padding: 0.5
       });
 
-    /*
-     * Polygon memakai SVG agar popup lebih stabil.
-     */
     const polygonRenderer =
       L.svg({
         padding: 0.5
@@ -606,76 +573,6 @@
         ) {
           return String(
             properties[key]
-          ).trim();
-        }
-      }
-
-      const memintaNamaPerusahaan =
-        daftarNama.some(
-          nama => {
-            const normal =
-              normalisasiNamaKolom(
-                nama
-              );
-
-            return (
-              normal.includes(
-                "namaperus"
-              ) ||
-              normal === "perusahaan" ||
-              normal === "pemegang" ||
-              normal === "company"
-            );
-          }
-        );
-
-      if (memintaNamaPerusahaan) {
-        const keyPerusahaan =
-          semuaKey.find(
-            key => {
-              const normal =
-                normalisasiNamaKolom(
-                  key
-                );
-
-              return (
-                normal.startsWith(
-                  "namaperus"
-                ) ||
-                normal.startsWith(
-                  "namaperu"
-                ) ||
-                normal.startsWith(
-                  "namapers"
-                ) ||
-                normal.startsWith(
-                  "nmperus"
-                ) ||
-                normal === "perusahaan" ||
-                normal === "pemegang" ||
-                normal === "company"
-              );
-            }
-          );
-
-        if (
-          keyPerusahaan &&
-          properties[
-            keyPerusahaan
-          ] !== null &&
-          properties[
-            keyPerusahaan
-          ] !== undefined &&
-          String(
-            properties[
-              keyPerusahaan
-            ]
-          ).trim() !== ""
-        ) {
-          return String(
-            properties[
-              keyPerusahaan
-            ]
           ).trim();
         }
       }
@@ -841,7 +738,7 @@
 
     /*
      * ======================================================
-     * POPUP SEMUA ATRIBUT POLYGON
+     * POPUP SELURUH ATRIBUT POLYGON
      * ======================================================
      */
 
@@ -861,14 +758,11 @@
           Object.entries(
             properties
           ).filter(
-            ([key, value]) => {
-              return (
-                key &&
-                formatNilaiAtribut(
-                  value
-                ) !== ""
-              );
-            }
+            ([key, value]) =>
+              key &&
+              formatNilaiAtribut(
+                value
+              ) !== ""
           );
 
         const baris =
@@ -902,9 +796,6 @@
           }
         );
 
-        /*
-         * Tidak menggunakan stopPropagation.
-         */
         layer.on(
           "click",
           function (event) {
@@ -2178,21 +2069,66 @@
 
     /*
      * ======================================================
-     * PDF HOTSPOT PBPH DAN KEBUN
+     * NAMA PERUSAHAAN PDF
      * ======================================================
      */
 
     function cariNamaPerusahaan(
-      properties
+      properties,
+      type
     ) {
-      return (
-        ambilPropertiGeoJSON(
-          properties,
-          DAFTAR_NAMA_PERUSAHAAN
-        ) ||
-        "Tidak diketahui"
-      );
+      /*
+       * PBPH menggunakan atribut NAMAOBJ.
+       */
+      if (
+        type === "pbph"
+      ) {
+        return (
+          ambilPropertiGeoJSON(
+            properties,
+            [
+              "NAMAOBJ",
+              "NamaObj",
+              "namaobj",
+              "NAMA_OBJ",
+              "Nama_Obj",
+              "nama_obj"
+            ]
+          ) ||
+          "Tidak diketahui"
+        );
+      }
+
+      /*
+       * Kebun menggunakan atribut PEMEGANGHA.
+       */
+      if (
+        type === "kebun"
+      ) {
+        return (
+          ambilPropertiGeoJSON(
+            properties,
+            [
+              "PEMEGANGHA",
+              "PemegangHa",
+              "pemegangha",
+              "PEMEGANG_HA",
+              "Pemegang_Ha",
+              "pemegang_ha"
+            ]
+          ) ||
+          "Tidak diketahui"
+        );
+      }
+
+      return "Tidak diketahui";
     }
+
+    /*
+     * ======================================================
+     * PDF HOTSPOT PBPH DAN KEBUN
+     * ======================================================
+     */
 
     async function exportPerusahaanPDF(
       type
@@ -2304,7 +2240,8 @@
           polygons.push({
             nama:
               cariNamaPerusahaan(
-                properties
+                properties,
+                type
               ),
 
             geojson,
