@@ -2,7 +2,6 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
@@ -269,11 +268,7 @@
   </div>
 
   <div class="header">
-    <img
-      src="logo-kiri.png"
-      class="logo"
-      alt="Logo kiri"
-    >
+    <img src="logo-kiri.png" class="logo" alt="Logo kiri">
 
     <div class="title">
       DIREKTORAT PENGENDALIAN KEBAKARAN LAHAN
@@ -283,11 +278,7 @@
       </small>
     </div>
 
-    <img
-      src="logo-kanan.png"
-      class="logo"
-      alt="Logo kanan"
-    >
+    <img src="logo-kanan.png" class="logo" alt="Logo kanan">
   </div>
 
   <div class="main">
@@ -427,9 +418,9 @@
 
   <script>
     /*
-     * =====================================================
+     * ======================================================
      * KONFIGURASI
-     * =====================================================
+     * ======================================================
      */
 
     const DATA_URL =
@@ -460,6 +451,40 @@
       "Desember"
     ];
 
+    const DAFTAR_NAMA_PERUSAHAAN = [
+      "Nama_Perusahaan",
+      "NAMA_PERUSAHAAN",
+      "nama_perusahaan",
+
+      "Nama_Perus",
+      "NAMA_PERUS",
+      "nama_perus",
+
+      "Nama_Peru",
+      "NAMA_PERU",
+      "nama_peru",
+
+      "NamaPerus",
+      "NAMAPERUS",
+      "namaperus",
+
+      "NamaPersh",
+      "NAMAPERSH",
+      "namapersh",
+
+      "Perusahaan",
+      "PERUSAHAAN",
+      "perusahaan",
+
+      "Pemegang",
+      "PEMEGANG",
+      "pemegang",
+
+      "Company",
+      "COMPANY",
+      "company"
+    ];
+
     let rawData = [];
 
     let provinsiLayer = null;
@@ -471,9 +496,9 @@
     let filterListenerSudahDipasang = false;
 
     /*
-     * =====================================================
+     * ======================================================
      * PETA
-     * =====================================================
+     * ======================================================
      */
 
     const map = L.map("map", {
@@ -498,9 +523,9 @@
       L.layerGroup().addTo(map);
 
     /*
-     * =====================================================
-     * FUNGSI BANTUAN
-     * =====================================================
+     * ======================================================
+     * FUNGSI UMUM
+     * ======================================================
      */
 
     function escapeHtml(value) {
@@ -512,15 +537,23 @@
         .replaceAll("'", "&#039;");
     }
 
-    function ambilNilai(row, daftarNama) {
+    function ambilNilai(
+      row,
+      daftarNama
+    ) {
       for (const nama of daftarNama) {
         if (
-          Object.prototype.hasOwnProperty.call(row, nama) &&
+          Object.prototype.hasOwnProperty.call(
+            row,
+            nama
+          ) &&
           row[nama] !== null &&
           row[nama] !== undefined &&
           String(row[nama]).trim() !== ""
         ) {
-          return String(row[nama]).trim();
+          return String(
+            row[nama]
+          ).trim();
         }
       }
 
@@ -533,6 +566,10 @@
         .replace(/[^a-z0-9]/g, "");
     }
 
+    /*
+     * Dapat mengenali nama field yang sama persis
+     * maupun Nama_Perusahaan yang terpotong.
+     */
     function ambilPropertiGeoJSON(
       properties,
       daftarNama
@@ -544,27 +581,115 @@
       const semuaKey =
         Object.keys(properties);
 
+      /*
+       * Pemeriksaan nama field secara langsung.
+       */
       for (const kemungkinan of daftarNama) {
         const target =
           normalisasiNamaKolom(
             kemungkinan
           );
 
-        const key =
+        const keyDitemukan =
           semuaKey.find(
-            nama =>
-              normalisasiNamaKolom(nama) ===
+            key =>
+              normalisasiNamaKolom(key) ===
               target
           );
 
         if (
-          key &&
-          properties[key] !== null &&
-          properties[key] !== undefined &&
-          String(properties[key]).trim() !== ""
+          keyDitemukan &&
+          properties[keyDitemukan] !== null &&
+          properties[keyDitemukan] !== undefined &&
+          String(
+            properties[keyDitemukan]
+          ).trim() !== ""
         ) {
           return String(
-            properties[key]
+            properties[keyDitemukan]
+          ).trim();
+        }
+      }
+
+      /*
+       * Pemeriksaan khusus Nama_Perusahaan
+       * yang mungkin terpotong saat konversi Shapefile.
+       */
+      const memintaNamaPerusahaan =
+        daftarNama.some(
+          nama => {
+            const normal =
+              normalisasiNamaKolom(
+                nama
+              );
+
+            return (
+              normal.includes(
+                "namaperus"
+              ) ||
+              normal ===
+                "perusahaan" ||
+              normal ===
+                "pemegang" ||
+              normal ===
+                "company"
+            );
+          }
+        );
+
+      if (memintaNamaPerusahaan) {
+        const keyNamaPerusahaan =
+          semuaKey.find(
+            key => {
+              const namaNormal =
+                normalisasiNamaKolom(
+                  key
+                );
+
+              return (
+                namaNormal.startsWith(
+                  "namaperus"
+                ) ||
+                namaNormal.startsWith(
+                  "namaperu"
+                ) ||
+                namaNormal.startsWith(
+                  "namapers"
+                ) ||
+                namaNormal.startsWith(
+                  "nmperus"
+                ) ||
+                namaNormal.startsWith(
+                  "nmaperus"
+                ) ||
+                namaNormal ===
+                  "perusahaan" ||
+                namaNormal ===
+                  "pemegang" ||
+                namaNormal ===
+                  "company"
+              );
+            }
+          );
+
+        if (
+          keyNamaPerusahaan &&
+          properties[
+            keyNamaPerusahaan
+          ] !== null &&
+          properties[
+            keyNamaPerusahaan
+          ] !== undefined &&
+          String(
+            properties[
+              keyNamaPerusahaan
+            ]
+          ).trim() !== ""
+        ) {
+          return String(
+            properties[
+              keyNamaPerusahaan
+            ]
           ).trim();
         }
       }
@@ -689,31 +814,27 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * POPUP PBPH
-     * =====================================================
+     * ======================================================
      */
 
     function popupPBPH(
       feature,
       layer
     ) {
-      const p =
+      const properties =
         feature?.properties || {};
 
       const namaPerusahaan =
         ambilPropertiGeoJSON(
-          p,
-          [
-            "Nama_Perusahaan",
-            "NAMA_PERUSAHAAN",
-            "nama_perusahaan"
-          ]
+          properties,
+          DAFTAR_NAMA_PERUSAHAAN
         );
 
       const jenis =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "jenis",
             "JENIS",
@@ -723,11 +844,12 @@
 
       const luas =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "luas_cyl",
             "LUAS_CYL",
-            "Luas_Cyl"
+            "Luas_Cyl",
+            "luascyl"
           ]
         );
 
@@ -788,31 +910,27 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * POPUP KEBUN
-     * =====================================================
+     * ======================================================
      */
 
     function popupKebun(
       feature,
       layer
     ) {
-      const p =
+      const properties =
         feature?.properties || {};
 
       const namaPerusahaan =
         ambilPropertiGeoJSON(
-          p,
-          [
-            "Nama_Perusahaan",
-            "NAMA_PERUSAHAAN",
-            "nama_perusahaan"
-          ]
+          properties,
+          DAFTAR_NAMA_PERUSAHAAN
         );
 
       const luas =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Luas",
             "LUAS",
@@ -822,19 +940,20 @@
 
       const tipeHak =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Tipehak",
             "TIPEHAK",
             "tipehak",
             "Tipe_Hak",
-            "TIPE_HAK"
+            "TIPE_HAK",
+            "tipe_hak"
           ]
         );
 
       const produk =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Produk",
             "PRODUK",
@@ -904,21 +1023,21 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * POPUP GAMBUT
-     * =====================================================
+     * ======================================================
      */
 
     function popupGambut(
       feature,
       layer
     ) {
-      const p =
+      const properties =
         feature?.properties || {};
 
       const nama =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Nama",
             "NAMA",
@@ -931,7 +1050,7 @@
 
       const fungsi =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Fungsi",
             "FUNGSI",
@@ -942,7 +1061,7 @@
 
       const luas =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Luas",
             "LUAS",
@@ -953,7 +1072,7 @@
 
       const provinsi =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Provinsi",
             "PROVINSI",
@@ -964,7 +1083,7 @@
 
       const kabupaten =
         ambilPropertiGeoJSON(
-          p,
+          properties,
           [
             "Kabupaten",
             "KABUPATEN",
@@ -1040,9 +1159,9 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * LOAD GEOJSON
-     * =====================================================
+     * ======================================================
      */
 
     async function loadProvinsi() {
@@ -1072,9 +1191,6 @@
             }
           ).addTo(map);
 
-        /*
-         * Batas provinsi diletakkan di belakang.
-         */
         if (
           provinsiLayer.bringToBack
         ) {
@@ -1230,9 +1346,9 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * TOGGLE LAYER
-     * =====================================================
+     * ======================================================
      */
 
     function pasangLayerListeners() {
@@ -1361,9 +1477,9 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * DATA HOTSPOT
-     * =====================================================
+     * ======================================================
      */
 
     function normalisasiSumber(value) {
@@ -1742,9 +1858,9 @@
     }
 
     /*
-     * =====================================================
-     * TAMPILKAN HOTSPOT DAN POPUP HOTSPOT
-     * =====================================================
+     * ======================================================
+     * MARKER DAN POPUP HOTSPOT
+     * ======================================================
      */
 
     function applyFilters() {
@@ -2026,9 +2142,9 @@
     }
 
     /*
-     * =====================================================
-     * EXPORT DATA UMUM
-     * =====================================================
+     * ======================================================
+     * EKSPOR DATA UMUM
+     * ======================================================
      */
 
     function buatDataEkspor(data) {
@@ -2242,9 +2358,9 @@
     }
 
     /*
-     * =====================================================
+     * ======================================================
      * PDF PBPH DAN KEBUN
-     * =====================================================
+     * ======================================================
      */
 
     function cariNamaPerusahaan(
@@ -2253,11 +2369,7 @@
       return (
         ambilPropertiGeoJSON(
           properties,
-          [
-            "Nama_Perusahaan",
-            "NAMA_PERUSAHAAN",
-            "nama_perusahaan"
-          ]
+          DAFTAR_NAMA_PERUSAHAAN
         ) ||
         "Tidak diketahui"
       );
@@ -2721,9 +2833,9 @@
     }
 
     /*
-     * =====================================================
-     * LOGIN DAN MULAI
-     * =====================================================
+     * ======================================================
+     * LOGIN DAN INISIALISASI
+     * ======================================================
      */
 
     function checkPassword() {
