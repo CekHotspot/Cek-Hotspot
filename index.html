@@ -759,7 +759,6 @@
 
     let rawData = [];
 
-    let provinsiLayer = null;
     let pbphLayer = null;
     let kebunLayer = null;
     let gambutLayer = null;
@@ -1242,46 +1241,6 @@
      * LOAD GEOJSON
      * ======================================================
      */
-
-    async function loadProvinsi() {
-      if (provinsiLayer) {
-        return provinsiLayer;
-      }
-
-      try {
-        const geojson =
-          await fetchJson(
-            "provinsi.geojson",
-            "Batas provinsi"
-          );
-
-        provinsiLayer =
-          L.geoJSON(
-            geojson,
-            {
-              interactive: false,
-
-              style: {
-                color: "black",
-                weight: 1,
-                fillOpacity: 0,
-                interactive: false
-              }
-            }
-          ).addTo(map);
-
-        if (
-          provinsiLayer.bringToBack
-        ) {
-          provinsiLayer.bringToBack();
-        }
-
-        return provinsiLayer;
-      } catch (error) {
-        console.error(error);
-        return null;
-      }
-    }
 
     async function loadPBPH() {
       if (pbphLayer) {
@@ -3267,11 +3226,6 @@
       pasangLayerListeners();
 
       await fetchAndRenderData();
-
-      setTimeout(
-        loadProvinsi,
-        100
-      );
 
       setTimeout(
         () =>
