@@ -807,8 +807,12 @@
       "hotspotPane"
     ).style.zIndex = 650;
 
+    map.getPane(
+      "hotspotPane"
+    ).style.pointerEvents = "none";
+
     const hotspotRenderer =
-      L.canvas({
+      L.svg({
         padding: 0.5,
         pane: "hotspotPane"
       });
