@@ -212,6 +212,135 @@
       color: #ff6b6b;
     }
 
+    .print-layout {
+      display: none;
+    }
+
+    /*
+     * Ukuran pratinjau dibuat sama dengan rasio A4 landscape.
+     * Ini penting agar Leaflet menghitung titik tengah berdasarkan
+     * ukuran halaman cetak, bukan berdasarkan ukuran layar.
+     */
+    @media screen {
+      body.mode-cetak {
+        display: block;
+        overflow: hidden;
+        background: white;
+      }
+
+      body.mode-cetak > .header,
+      body.mode-cetak .filters,
+      body.mode-cetak #login-overlay,
+      body.mode-cetak .leaflet-control-zoom,
+      body.mode-cetak .leaflet-control-attribution {
+        display: none !important;
+      }
+
+      body.mode-cetak .main {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 15000;
+        width: 1122px;
+        height: 794px;
+        padding: 95px 38px 57px;
+        background: white;
+      }
+
+      body.mode-cetak #map {
+        width: 1046px;
+        height: 642px;
+        border: 2px solid #222;
+      }
+
+      body.mode-cetak .print-layout {
+        display: block;
+        position: absolute;
+        z-index: 2000;
+        pointer-events: none;
+        font-family: Arial, sans-serif;
+      }
+
+      body.mode-cetak .print-header {
+        top: 15px;
+        left: 38px;
+        right: 38px;
+        text-align: center;
+      }
+
+      body.mode-cetak .print-title {
+        font-size: 20px;
+        font-weight: bold;
+      }
+
+      body.mode-cetak .print-subtitle {
+        margin-top: 6px;
+        font-size: 12px;
+      }
+
+      body.mode-cetak .print-logo-left,
+      body.mode-cetak .print-logo-right {
+        top: 15px;
+        width: 91px;
+        height: 60px;
+        object-fit: contain;
+      }
+
+      body.mode-cetak .print-logo-left { left: 42px; }
+      body.mode-cetak .print-logo-right { right: 42px; }
+
+      body.mode-cetak .print-info,
+      body.mode-cetak .print-legend {
+        bottom: 68px;
+        padding: 9px 11px;
+        color: #111;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid #555;
+        border-radius: 5px;
+        font-size: 10px;
+        line-height: 1.45;
+      }
+
+      body.mode-cetak .print-info { left: 49px; }
+      body.mode-cetak .print-legend { right: 49px; min-width: 163px; }
+
+      body.mode-cetak .legend-dot {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        margin-right: 5px;
+        border: 1px solid #111;
+        border-radius: 50%;
+        vertical-align: -2px;
+      }
+
+      body.mode-cetak .print-north {
+        top: 113px;
+        right: 53px;
+        width: 49px;
+        color: #111;
+        background: rgba(255,255,255,0.86);
+        text-align: center;
+        font-size: 23px;
+        font-weight: bold;
+        line-height: 0.8;
+      }
+
+      body.mode-cetak .print-north small {
+        display: block;
+        font-size: 11px;
+      }
+
+      body.mode-cetak .print-footer {
+        left: 38px;
+        right: 38px;
+        bottom: 15px;
+        text-align: center;
+        color: #444;
+        font-size: 10px;
+      }
+    }
+
     @media (max-width: 600px) {
       .header {
         grid-template-columns: 45px 1fr 45px;
@@ -233,16 +362,157 @@
       }
     }
 
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
     @media print {
-      .header,
-      .filters,
-      #login-overlay {
+      html, body {
+        width: 297mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        background: white !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      body.mode-cetak {
+        display: block !important;
+      }
+
+      body.mode-cetak > .header,
+      body.mode-cetak .filters,
+      body.mode-cetak #login-overlay,
+      body.mode-cetak .leaflet-control-zoom,
+      body.mode-cetak .leaflet-control-attribution {
         display: none !important;
       }
 
-      #map {
-        width: 100vw !important;
-        height: 100vh !important;
+      body.mode-cetak .main {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 297mm !important;
+        height: 210mm !important;
+        padding: 25mm 10mm 15mm !important;
+        background: white !important;
+      }
+
+      body.mode-cetak #map {
+        width: 277mm !important;
+        height: 170mm !important;
+        border: 0.5mm solid #222 !important;
+      }
+
+      body.mode-cetak .print-layout {
+        display: block !important;
+        position: absolute;
+        z-index: 2000;
+        pointer-events: none;
+        font-family: Arial, sans-serif;
+      }
+
+      body.mode-cetak .print-header {
+        top: 4mm;
+        left: 10mm;
+        right: 10mm;
+        height: 17mm;
+        text-align: center;
+        color: #111;
+      }
+
+      body.mode-cetak .print-title {
+        font-size: 15pt;
+        font-weight: bold;
+        line-height: 1.2;
+      }
+
+      body.mode-cetak .print-subtitle {
+        margin-top: 1.5mm;
+        font-size: 8.5pt;
+      }
+
+      body.mode-cetak .print-logo-left,
+      body.mode-cetak .print-logo-right {
+        top: 4mm;
+        width: 24mm;
+        height: 16mm;
+        object-fit: contain;
+      }
+
+      body.mode-cetak .print-logo-left { left: 11mm; }
+      body.mode-cetak .print-logo-right { right: 11mm; }
+
+      body.mode-cetak .print-info {
+        left: 13mm;
+        bottom: 18mm;
+        max-width: 115mm;
+        padding: 2.5mm 3mm;
+        color: #111;
+        background: rgba(255,255,255,0.92);
+        border: 0.3mm solid #555;
+        border-radius: 1.5mm;
+        font-size: 7.5pt;
+        line-height: 1.4;
+      }
+
+      body.mode-cetak .print-legend {
+        right: 13mm;
+        bottom: 18mm;
+        min-width: 43mm;
+        padding: 2.5mm 3mm;
+        color: #111;
+        background: rgba(255,255,255,0.92);
+        border: 0.3mm solid #555;
+        border-radius: 1.5mm;
+        font-size: 7.5pt;
+        line-height: 1.6;
+      }
+
+      body.mode-cetak .legend-dot {
+        display: inline-block;
+        width: 3mm;
+        height: 3mm;
+        margin-right: 1.5mm;
+        border: 0.3mm solid #111;
+        border-radius: 50%;
+        vertical-align: -0.5mm;
+      }
+
+      body.mode-cetak .print-north {
+        top: 30mm;
+        right: 14mm;
+        width: 13mm;
+        padding-top: 1mm;
+        color: #111;
+        background: rgba(255,255,255,0.86);
+        border-radius: 1mm;
+        text-align: center;
+        font-size: 17pt;
+        font-weight: bold;
+        line-height: 0.75;
+      }
+
+      body.mode-cetak .print-north small {
+        display: block;
+        font-size: 8pt;
+        line-height: 1;
+      }
+
+      body.mode-cetak .print-footer {
+        left: 10mm;
+        right: 10mm;
+        bottom: 4mm;
+        text-align: center;
+        color: #444;
+        font-size: 7pt;
+      }
+
+      body.mode-cetak .leaflet-control-scale {
+        display: block !important;
+        margin-left: 4mm !important;
+        margin-bottom: 4mm !important;
       }
     }
   </style>
@@ -391,7 +661,7 @@
 
       <button
         class="export-button"
-        onclick="window.print()"
+        onclick="cetakPeta()"
       >
         🖨️ Cetak Peta
       </button>
@@ -413,6 +683,32 @@
     </div>
 
     <div id="map"></div>
+
+    <div class="print-layout print-header">
+      <div class="print-title">PETA SEBARAN HOTSPOT</div>
+      <div id="print-subtitle" class="print-subtitle"></div>
+    </div>
+
+    <img src="logo-kiri.png" class="print-layout print-logo-left" alt="Logo kiri">
+    <img src="logo-kanan.png" class="print-layout print-logo-right" alt="Logo kanan">
+
+    <div id="print-info" class="print-layout print-info"></div>
+
+    <div class="print-layout print-legend">
+      <strong>LEGENDA</strong><br>
+      <span class="legend-dot" style="background:#ffff00;"></span> Hotspot Medium<br>
+      <span class="legend-dot" style="background:#ff0000;"></span> Hotspot High<br>
+      <span style="color:#0057d9; font-weight:bold;">▰</span> PBPH<br>
+      <span style="color:#168332; font-weight:bold;">▰</span> Kebun<br>
+      <span style="color:#795234; font-weight:bold;">▰</span> Gambut
+    </div>
+
+    <div class="print-layout print-north">
+      ▲
+      <small>U</small>
+    </div>
+
+    <div id="print-footer" class="print-layout print-footer"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -494,6 +790,16 @@
 
     const hotspotLayer =
       L.layerGroup().addTo(map);
+
+    L.control.scale({
+      position: "bottomleft",
+      metric: true,
+      imperial: false,
+      maxWidth: 160
+    }).addTo(map);
+
+    let posisiPetaSebelumCetak = null;
+    let prosesCetakBerjalan = false;
 
     /*
      * ======================================================
@@ -1569,6 +1875,214 @@
 
     /*
      * ======================================================
+     * CETAK PETA A4 LANDSCAPE
+     * ======================================================
+     */
+
+    function buatKeteranganCetak(filter, jumlah) {
+      const tanggal =
+        filter.tanggal.length
+          ? filter.tanggal.join(", ")
+          : "Tidak dipilih";
+
+      const confidence =
+        filter.levels.length
+          ? filter.levels
+              .map(value => value.toUpperCase())
+              .join(", ")
+          : "Tidak dipilih";
+
+      const sumber =
+        filter.sumber.length
+          ? filter.sumber.join(", ")
+          : "Tidak dipilih";
+
+      document.getElementById(
+        "print-subtitle"
+      ).textContent =
+        `Confidence ${confidence} | ${tanggal}`;
+
+      document.getElementById(
+        "print-info"
+      ).innerHTML =
+        "<strong>INFORMASI PETA</strong><br>" +
+        `Tanggal: ${escapeHtml(tanggal)}<br>` +
+        `Confidence: ${escapeHtml(confidence)}<br>` +
+        `Sumber: ${escapeHtml(sumber)}<br>` +
+        `Jumlah hotspot: ${jumlah}`;
+
+      document.getElementById(
+        "print-footer"
+      ).textContent =
+        "Direktorat Pengendalian Kebakaran Lahan | " +
+        `Dicetak ${new Date().toLocaleString("id-ID")}`;
+    }
+
+    function kembalikanPetaSetelahCetak() {
+      if (!prosesCetakBerjalan) {
+        return;
+      }
+
+      document.body.classList.remove(
+        "mode-cetak"
+      );
+
+      setTimeout(
+        () => {
+          map.invalidateSize({
+            animate: false
+          });
+
+          if (posisiPetaSebelumCetak) {
+            map.setView(
+              posisiPetaSebelumCetak.center,
+              posisiPetaSebelumCetak.zoom,
+              { animate: false }
+            );
+          }
+
+          posisiPetaSebelumCetak = null;
+          prosesCetakBerjalan = false;
+        },
+        100
+      );
+    }
+
+    function tungguTilePeta(timeout = 2500) {
+      return new Promise(resolve => {
+        const mulai = Date.now();
+
+        const cek = () => {
+          const tileBelumSelesai =
+            document.querySelectorAll(
+              ".leaflet-tile-loading"
+            ).length;
+
+          if (
+            tileBelumSelesai === 0 ||
+            Date.now() - mulai >= timeout
+          ) {
+            resolve();
+            return;
+          }
+
+          setTimeout(cek, 100);
+        };
+
+        cek();
+      });
+    }
+
+    async function cetakPeta() {
+      if (prosesCetakBerjalan) {
+        return;
+      }
+
+      const filter =
+        getSelectedFilters();
+
+      const data =
+        getFilteredData().filter(
+          row =>
+            Number.isFinite(row._latitude) &&
+            Number.isFinite(row._longitude)
+        );
+
+      if (
+        filter.levels.length === 0 ||
+        filter.tanggal.length === 0 ||
+        filter.sumber.length === 0
+      ) {
+        alert(
+          "Pilih minimal satu tanggal, confidence, dan sumber."
+        );
+        return;
+      }
+
+      if (data.length === 0) {
+        alert(
+          "Tidak ada hotspot sesuai filter untuk dicetak."
+        );
+        return;
+      }
+
+      prosesCetakBerjalan = true;
+
+      posisiPetaSebelumCetak = {
+        center: map.getCenter(),
+        zoom: map.getZoom()
+      };
+
+      buatKeteranganCetak(
+        filter,
+        data.length
+      );
+
+      document.body.classList.add(
+        "mode-cetak"
+      );
+
+      await new Promise(
+        resolve =>
+          requestAnimationFrame(
+            () =>
+              requestAnimationFrame(resolve)
+          )
+      );
+
+      map.invalidateSize({
+        animate: false
+      });
+
+      const bounds =
+        L.latLngBounds(
+          data.map(
+            row => [
+              row._latitude,
+              row._longitude
+            ]
+          )
+        );
+
+      if (
+        bounds.isValid() &&
+        data.length > 1
+      ) {
+        map.fitBounds(
+          bounds,
+          {
+            paddingTopLeft: [45, 35],
+            paddingBottomRight: [45, 55],
+            maxZoom: 11,
+            animate: false
+          }
+        );
+      } else {
+        map.setView(
+          [
+            data[0]._latitude,
+            data[0]._longitude
+          ],
+          10,
+          { animate: false }
+        );
+      }
+
+      await tungguTilePeta();
+
+      setTimeout(
+        () => window.print(),
+        250
+      );
+    }
+
+    window.addEventListener(
+      "afterprint",
+      kembalikanPetaSetelahCetak
+    );
+
+    /*
+     * ======================================================
      * POPUP HOTSPOT
      * ======================================================
      */
@@ -2088,11 +2602,7 @@
             properties,
             [
               "NAMOBJ",
-              "NAMOBJ",
-              "NAMOBJ",
-              "NAMA_OBJ",
-              "Nama_Obj",
-              "nama_obj"
+              "NAM_OBJ"
             ]
           ) ||
           "Tidak diketahui"
