@@ -2008,9 +2008,13 @@
 
       prosesCetakBerjalan = true;
 
+      const boundsSebelumCetak =
+        map.getBounds();
+
       posisiPetaSebelumCetak = {
         center: map.getCenter(),
-        zoom: map.getZoom()
+        zoom: map.getZoom(),
+        bounds: boundsSebelumCetak
       };
 
       buatKeteranganCetak(
@@ -2034,41 +2038,26 @@
         animate: false
       });
 
-      const bounds =
-        L.latLngBounds(
-          data.map(
-            row => [
-              row._latitude,
-              row._longitude
-            ]
-          )
-        );
+      /*
+       * Pertahankan wilayah yang sedang terlihat sebelum dicetak.
+       * Zoom hanya menyesuaikan perubahan rasio layar ke A4.
+       */
+      map.fitBounds(
+        boundsSebelumCetak,
+        {
+          padding: [0, 0],
+          animate: false
+        }
+      );
 
-      if (
-        bounds.isValid() &&
-        data.length > 1
-      ) {
-        map.fitBounds(
-          bounds,
-          {
-            paddingTopLeft: [45, 35],
-            paddingBottomRight: [45, 55],
-            maxZoom: 11,
-            animate: false
-          }
-        );
-      } else {
-        map.setView(
-          [
-            data[0]._latitude,
-            data[0]._longitude
-          ],
-          10,
-          { animate: false }
-        );
-      }
+      map.panTo(
+        posisiPetaSebelumCetak.center,
+        {
+          animate: false
+        }
+      );
 
-      await tungguTilePeta();
+      await tungguTilePeta(3500);
 
       setTimeout(
         () => window.print(),
