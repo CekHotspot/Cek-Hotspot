@@ -514,6 +514,15 @@
         margin-left: 4mm !important;
         margin-bottom: 4mm !important;
       }
+
+      body.mode-cetak .leaflet-tile-pane,
+      body.mode-cetak .leaflet-tile {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+      }
     }
   </style>
 </head>
@@ -769,12 +778,16 @@
       preferCanvas: true
     }).setView([-2.5, 117], 5);
 
-    L.tileLayer(
+    const basemapLayer =
+      L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/" +
       "World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
         maxZoom: 18,
-        updateWhenIdle: true
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+        keepBuffer: 4,
+        crossOrigin: "anonymous"
       }
     ).addTo(map);
 
@@ -2010,18 +2023,33 @@
       );
     }
 
-    function tungguTilePeta(timeout = 2500) {
+    function tungguTilePeta(timeout = 6000) {
       return new Promise(resolve => {
         const mulai = Date.now();
 
         const cek = () => {
+          const semuaTile =
+            Array.from(
+              document.querySelectorAll(
+                "#map .leaflet-tile"
+              )
+            );
+
           const tileBelumSelesai =
-            document.querySelectorAll(
-              ".leaflet-tile-loading"
+            semuaTile.filter(
+              tile =>
+                !tile.classList.contains(
+                  "leaflet-tile-loaded"
+                ) ||
+                !tile.complete ||
+                tile.naturalWidth === 0
             ).length;
 
           if (
-            tileBelumSelesai === 0 ||
+            (
+              semuaTile.length > 0 &&
+              tileBelumSelesai === 0
+            ) ||
             Date.now() - mulai >= timeout
           ) {
             resolve();
@@ -2119,11 +2147,11 @@
         }
       );
 
-      await tungguTilePeta(3500);
+      await tungguTilePeta(7000);
 
       setTimeout(
         () => window.print(),
-        250
+        500
       );
     }
 
