@@ -960,6 +960,55 @@
       `;
     }
 
+    function buatTombolGoogleMaps(
+      latitude,
+      longitude
+    ) {
+      if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
+      ) {
+        return "";
+      }
+
+      const googleMapsUrl =
+        "https://www.google.com/maps/search/" +
+        "?api=1&query=" +
+        encodeURIComponent(
+          latitude + "," + longitude
+        );
+
+      return `
+        <tr>
+          <td
+            colspan="2"
+            style="
+              padding:8px 5px 3px;
+              border:none;
+            "
+          >
+            <a
+              href="${googleMapsUrl}"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="
+                display:block;
+                padding:9px 10px;
+                color:white;
+                background:#1976d2;
+                border-radius:5px;
+                text-align:center;
+                text-decoration:none;
+                font-weight:bold;
+              "
+            >
+              📍 Buka Lokasi di Google Maps
+            </a>
+          </td>
+        </tr>
+      `;
+    }
+
     function buatKotakPopup(
       judul,
       warna,
@@ -2222,6 +2271,11 @@
                 buatBarisPopup(
                   "Sumber",
                   row._sumberNormal
+                ),
+
+                buatTombolGoogleMaps(
+                  lat,
+                  lon
                 )
               ]
             );
