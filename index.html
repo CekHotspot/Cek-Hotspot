@@ -778,14 +778,32 @@
       }
     ).addTo(map);
 
+    map.createPane(
+      "polygonPane"
+    );
+
+    map.getPane(
+      "polygonPane"
+    ).style.zIndex = 410;
+
+    map.createPane(
+      "hotspotPane"
+    );
+
+    map.getPane(
+      "hotspotPane"
+    ).style.zIndex = 650;
+
     const hotspotRenderer =
       L.canvas({
-        padding: 0.5
+        padding: 0.5,
+        pane: "hotspotPane"
       });
 
     const polygonRenderer =
       L.svg({
-        padding: 0.5
+        padding: 0.5,
+        pane: "polygonPane"
       });
 
     const hotspotLayer =
@@ -979,40 +997,34 @@
         );
 
       return `
-        <tr>
-          <td
-            colspan="2"
+        <div style="padding-top:8px;">
+          <a
+            href="${googleMapsUrl}"
+            target="_blank"
+            rel="noopener noreferrer"
+            onclick="event.stopPropagation();"
             style="
-              padding:8px 5px 3px;
-              border:none;
+              display:block;
+              padding:9px 10px;
+              color:white;
+              background:#1976d2;
+              border-radius:5px;
+              text-align:center;
+              text-decoration:none;
+              font-weight:bold;
             "
           >
-            <a
-              href="${googleMapsUrl}"
-              target="_blank"
-              rel="noopener noreferrer"
-              style="
-                display:block;
-                padding:9px 10px;
-                color:white;
-                background:#1976d2;
-                border-radius:5px;
-                text-align:center;
-                text-decoration:none;
-                font-weight:bold;
-              "
-            >
-              📍 Buka Lokasi di Google Maps
-            </a>
-          </td>
-        </tr>
+            📍 Buka Lokasi di Google Maps
+          </a>
+        </div>
       `;
     }
 
     function buatKotakPopup(
       judul,
       warna,
-      baris
+      baris,
+      footerHtml = ""
     ) {
       const isi =
         baris.filter(Boolean).join("");
@@ -1050,6 +1062,7 @@
                 ">
                   ${isi}
                 </table>
+                ${footerHtml}
               `
               : `
                 <div style="padding:8px;">
@@ -2271,13 +2284,12 @@
                 buatBarisPopup(
                   "Sumber",
                   row._sumberNormal
-                ),
-
-                buatTombolGoogleMaps(
-                  lat,
-                  lon
                 )
-              ]
+              ],
+              buatTombolGoogleMaps(
+                lat,
+                lon
+              )
             );
 
           marker.bindPopup(
