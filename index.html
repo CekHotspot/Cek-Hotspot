@@ -2469,7 +2469,12 @@
         return;
       }
 
-      const data = getFilteredData().filter(
+      /*
+       * Layer kandidat selalu memakai seluruh data baku 3 hari
+       * Medium–High dari semua sumber yang diizinkan. Layer ini
+       * sengaja tidak mengikuti centang filter tampilan hotspot.
+       */
+      const data = rawData.filter(
         row =>
           Number.isFinite(row._latitude) &&
           Number.isFinite(row._longitude) &&
@@ -2818,8 +2823,6 @@
         "jumlah-hotspot"
       ).textContent =
         `${jumlah} hotspot ditampilkan`;
-
-      renderKandidatFireSpot();
     }
 
     function pasangFilterListeners() {
