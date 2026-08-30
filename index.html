@@ -729,10 +729,8 @@
      * ======================================================
      */
 
-    const DATA_URL =
-      "https://opensheet.elk.sh/" +
-      "1Vce5YUId7cUZ29j8OEhdFSer26cszXgX3OSm5zoX1UI/" +
-      "Data%20Hotspot%20Nasional";
+    const HOTSPOT_API_URL =
+      "https://opsroom.sipongidata.my.id/api/opsroom/indoHotspot";
 
     const PASSWORD = "karla";
 
@@ -808,7 +806,7 @@
 
     map.getPane(
       "hotspotPane"
-    ).style.pointerEvents = "none";
+    ).style.pointerEvents = "auto";
 
     map.createPane(
       "labelPane"
@@ -2363,6 +2361,106 @@
         true;
     }
 
+    function formatTanggalApi(date) {
+      return (
+        date.getFullYear() +
+        "-" +
+        String(date.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(date.getDate()).padStart(2, "0")
+      );
+    }
+
+    function buatUrlHotspotApi(sumber) {
+      const hariIni = new Date();
+      hariIni.setHours(0, 0, 0, 0);
+
+      const duaHariLalu = new Date(hariIni);
+      duaHariLalu.setDate(duaHariLalu.getDate() - 2);
+
+      const params = new URLSearchParams();
+      params.append("wilayah", "IN");
+      params.append("filterperiode", "true");
+      params.append("from", formatTanggalApi(duaHariLalu));
+      params.append("to", formatTanggalApi(hariIni));
+      params.append("late", "custom");
+      params.append("satelit[]", sumber);
+      params.append("confidence[]", "medium");
+      params.append("confidence[]", "high");
+
+      return HOTSPOT_API_URL + "?" + params.toString();
+    }
+
+    function featureApiKeBaris(feature, sumberRequest) {
+      const properties = feature?.properties || {};
+      const coordinates =
+        Array.isArray(feature?.geometry?.coordinates)
+          ? feature.geometry.coordinates
+          : [];
+
+      return {
+        "Tanggal & Jam":
+          properties.date_hotspot ||
+          properties.date_hotspot_ori ||
+          "",
+        "Provinsi": properties.nama_provinsi || "",
+        "Kab/Kota":
+          properties.kabkota ||
+          properties.kabupaten ||
+          "",
+        "Kecamatan": properties.kecamatan || "",
+        "Desa": properties.desa || "",
+        "Latitude":
+          coordinates.length >= 2
+            ? coordinates[1]
+            : properties.lat ?? properties.latitude ?? "",
+        "Longitude":
+          coordinates.length >= 2
+            ? coordinates[0]
+            : properties.long ??
+              properties.longitude ??
+              properties.lon ??
+              properties.lng ??
+              "",
+        "Confidence_Level":
+          properties.confidence_level ||
+          properties.confidence_category ||
+          normalisasiConfidenceApi(properties.confidence),
+        "Confidence": properties.confidence ?? "",
+        "Sumber": properties.sumber || sumberRequest,
+        "ID Hotspot":
+          properties.hs_id ||
+          properties.id_hotspot ||
+          ""
+      };
+    }
+
+    function normalisasiConfidenceApi(value) {
+      const text = String(value ?? "").trim().toLowerCase();
+
+      if (["high", "h", "tinggi"].includes(text)) {
+        return "high";
+      }
+
+      if (["medium", "m", "nominal", "sedang"].includes(text)) {
+        return "medium";
+      }
+
+      if (["low", "l", "rendah"].includes(text)) {
+        return "low";
+      }
+
+      const angka = Number(text);
+
+      if (Number.isFinite(angka)) {
+        if (angka >= 80) return "high";
+        if (angka >= 30) return "medium";
+        if (angka >= 0) return "low";
+      }
+
+      return "";
+    }
+
     async function fetchAndRenderData() {
       const jumlahElement =
         document.getElementById(
@@ -2373,17 +2471,47 @@
         jumlahElement.textContent =
           "Mengambil data hotspot...";
 
-        const data =
-          await fetchJson(
-            DATA_URL,
-            "Data hotspot"
-          );
+        const hasilRequest = await Promise.allSettled(
+          SUMBER_YANG_DIIZINKAN.map(
+            async sumber => {
+              const data = await fetchJson(
+                buatUrlHotspotApi(sumber),
+                "Hotspot " + sumber
+              );
 
-        if (
-          !Array.isArray(data)
-        ) {
+              if (!Array.isArray(data?.features)) {
+                throw new Error(
+                  "Array features tidak ditemukan untuk " + sumber
+                );
+              }
+
+              return data.features.map(
+                feature => featureApiKeBaris(feature, sumber)
+              );
+            }
+          )
+        );
+
+        const data = [];
+        const sumberGagal = [];
+
+        hasilRequest.forEach(
+          (hasil, index) => {
+            if (hasil.status === "fulfilled") {
+              data.push(...hasil.value);
+            } else {
+              sumberGagal.push(SUMBER_YANG_DIIZINKAN[index]);
+              console.error(
+                SUMBER_YANG_DIIZINKAN[index],
+                hasil.reason
+              );
+            }
+          }
+        );
+
+        if (!data.length) {
           throw new Error(
-            "Respons data bukan array"
+            "Semua sumber API hotspot gagal atau tidak mengembalikan data."
           );
         }
 
@@ -2424,6 +2552,12 @@
         requestAnimationFrame(
           applyFilters
         );
+
+        if (sumberGagal.length) {
+          console.warn(
+            "Sumber yang gagal dimuat: " + sumberGagal.join(", ")
+          );
+        }
       } catch (error) {
         console.error(error);
 
