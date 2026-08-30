@@ -646,6 +646,11 @@
         Gambut (coklat)
       </label>
 
+      <label>
+        <input type="checkbox" id="firespot-toggle">
+        Kandidat Fire Spot &amp; Area Indikatif
+      </label>
+
       <h4>Download Data</h4>
 
       <div class="dropdown">
@@ -709,7 +714,8 @@
       <span class="legend-dot" style="background:#ff0000;"></span> Hotspot High<br>
       <span style="color:#0057d9; font-weight:bold;">▰</span> PBPH<br>
       <span style="color:#168332; font-weight:bold;">▰</span> Kebun<br>
-      <span style="color:#795234; font-weight:bold;">▰</span> Gambut
+      <span style="color:#795234; font-weight:bold;">▰</span> Gambut<br>
+      <span style="color:#ff6f00; font-weight:bold;">⬢</span> Kandidat Fire Spot
     </div>
 
     <div class="print-layout print-north">
@@ -760,6 +766,7 @@
     let pbphLayer = null;
     let kebunLayer = null;
     let gambutLayer = null;
+    let kandidatFireSpotLayer = null;
 
     let aplikasiSudahDimulai = false;
     let filterListenerSudahDipasang = false;
@@ -809,6 +816,18 @@
     ).style.pointerEvents = "auto";
 
     map.createPane(
+      "firespotPane"
+    );
+
+    map.getPane(
+      "firespotPane"
+    ).style.zIndex = 560;
+
+    map.getPane(
+      "firespotPane"
+    ).style.pointerEvents = "auto";
+
+    map.createPane(
       "labelPane"
     );
 
@@ -846,8 +865,17 @@
         pane: "polygonPane"
       });
 
+    const firespotRenderer =
+      L.svg({
+        padding: 0.5,
+        pane: "firespotPane"
+      });
+
     const hotspotLayer =
       L.layerGroup().addTo(map);
+
+    kandidatFireSpotLayer =
+      L.layerGroup();
 
     L.control.scale({
       position: "bottomleft",
@@ -1552,6 +1580,17 @@
             }
           }
         );
+
+      document
+        .getElementById(
+          "firespot-toggle"
+        )
+        .addEventListener(
+          "change",
+          function () {
+            renderKandidatFireSpot();
+          }
+        );
     }
 
     /*
@@ -2149,6 +2188,456 @@
 
     /*
      * ======================================================
+     * KANDIDAT FIRE SPOT DAN AREA INDIKATIF
+     * ======================================================
+     */
+
+    const RADIUS_KLASTER_FIRESPOT_METER = 1000;
+
+    function koordinatWebMercator(
+      latitude,
+      longitude
+    ) {
+      const batasLat = Math.max(
+        -85.05112878,
+        Math.min(85.05112878, latitude)
+      );
+
+      const x =
+        longitude * 20037508.34 / 180;
+
+      const y =
+        Math.log(
+          Math.tan(
+            (90 + batasLat) * Math.PI / 360
+          )
+        ) / (Math.PI / 180) * 20037508.34 / 180;
+
+      return { x, y };
+    }
+
+    function jarakHaversineMeter(a, b) {
+      const rad = value => value * Math.PI / 180;
+      const dLat = rad(b._latitude - a._latitude);
+      const dLon = rad(b._longitude - a._longitude);
+      const lat1 = rad(a._latitude);
+      const lat2 = rad(b._latitude);
+
+      const nilai =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1) *
+        Math.cos(lat2) *
+        Math.sin(dLon / 2) ** 2;
+
+      return 6371008.8 * 2 * Math.atan2(
+        Math.sqrt(nilai),
+        Math.sqrt(1 - nilai)
+      );
+    }
+
+    function waktuObservasiFireSpot(row) {
+      const text = String(row._waktu || "");
+      const jamMatch = text.match(/(?:^|\s)(\d{1,2})[:.](\d{2})(?::\d{2})?/);
+
+      if (!jamMatch) {
+        return `${row._sumberNormal}|${row._tanggalFilter}|tanpa-jam`;
+      }
+
+      const menitTotal =
+        parseInt(jamMatch[1], 10) * 60 +
+        parseInt(jamMatch[2], 10);
+
+      const kelompok30Menit =
+        Math.floor(menitTotal / 30);
+
+      return (
+        `${row._sumberNormal}|${row._tanggalFilter}|` +
+        kelompok30Menit
+      );
+    }
+
+    function kelompokkanHotspotSpasial(data) {
+      const ukuranGrid =
+        RADIUS_KLASTER_FIRESPOT_METER;
+
+      const parent =
+        data.map((_, index) => index);
+
+      const rank =
+        data.map(() => 0);
+
+      const cariAkar = index => {
+        while (parent[index] !== index) {
+          parent[index] = parent[parent[index]];
+          index = parent[index];
+        }
+
+        return index;
+      };
+
+      const gabungkan = (a, b) => {
+        let akarA = cariAkar(a);
+        let akarB = cariAkar(b);
+
+        if (akarA === akarB) return;
+
+        if (rank[akarA] < rank[akarB]) {
+          [akarA, akarB] = [akarB, akarA];
+        }
+
+        parent[akarB] = akarA;
+
+        if (rank[akarA] === rank[akarB]) {
+          rank[akarA]++;
+        }
+      };
+
+      const grid = new Map();
+
+      data.forEach((row, index) => {
+        const posisi = koordinatWebMercator(
+          row._latitude,
+          row._longitude
+        );
+
+        const gridX = Math.floor(posisi.x / ukuranGrid);
+        const gridY = Math.floor(posisi.y / ukuranGrid);
+
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const tetangga =
+              grid.get(`${gridX + dx},${gridY + dy}`) || [];
+
+            tetangga.forEach(indexTetangga => {
+              if (
+                jarakHaversineMeter(
+                  row,
+                  data[indexTetangga]
+                ) <= RADIUS_KLASTER_FIRESPOT_METER
+              ) {
+                gabungkan(index, indexTetangga);
+              }
+            });
+          }
+        }
+
+        const key = `${gridX},${gridY}`;
+
+        if (!grid.has(key)) {
+          grid.set(key, []);
+        }
+
+        grid.get(key).push(index);
+      });
+
+      const hasil = new Map();
+
+      data.forEach((row, index) => {
+        const akar = cariAkar(index);
+
+        if (!hasil.has(akar)) {
+          hasil.set(akar, []);
+        }
+
+        hasil.get(akar).push(row);
+      });
+
+      return Array.from(hasil.values());
+    }
+
+    function klasifikasiKandidatFireSpot(anggota) {
+      const observasi = new Set(
+        anggota.map(waktuObservasiFireSpot)
+      );
+
+      const satelit = new Set(
+        anggota.map(row => row._sumberNormal)
+      );
+
+      const tanggal = new Set(
+        anggota.map(row => row._tanggalFilter)
+      );
+
+      const memenuhiKandidat =
+        anggota.length >= 3 ||
+        observasi.size >= 2 ||
+        satelit.size >= 2 ||
+        tanggal.size >= 2;
+
+      if (!memenuhiKandidat) {
+        return null;
+      }
+
+      if (tanggal.size >= 2) {
+        return {
+          nama: "Kandidat Kuat",
+          warna: "#d32f2f",
+          observasi,
+          satelit,
+          tanggal
+        };
+      }
+
+      if (
+        observasi.size >= 2 ||
+        satelit.size >= 2
+      ) {
+        return {
+          nama: "Kandidat Sedang",
+          warna: "#f57c00",
+          observasi,
+          satelit,
+          tanggal
+        };
+      }
+
+      return {
+        nama: "Indikasi Awal",
+        warna: "#fbc02d",
+        observasi,
+        satelit,
+        tanggal
+      };
+    }
+
+    function radiusPikselKm(row) {
+      return row._sumberNormal === "NASA-MODIS"
+        ? 0.5
+        : 0.1875;
+    }
+
+    function buatAreaIndikatifFireSpot(anggota) {
+      const bufferPiksel = anggota.map(row =>
+        turf.buffer(
+          turf.point([
+            row._longitude,
+            row._latitude
+          ]),
+          radiusPikselKm(row),
+          {
+            units: "kilometers",
+            steps: 8
+          }
+        )
+      );
+
+      if (bufferPiksel.length === 1) {
+        return bufferPiksel[0];
+      }
+
+      let areaGabungan = bufferPiksel[0];
+
+      for (let i = 1; i < bufferPiksel.length; i++) {
+        try {
+          areaGabungan =
+            turf.union(
+              areaGabungan,
+              bufferPiksel[i]
+            ) || areaGabungan;
+        } catch (error) {
+          console.warn(
+            "Sebagian buffer kandidat tidak dapat digabungkan:",
+            error
+          );
+        }
+      }
+
+      return areaGabungan;
+    }
+
+    function formatLuasHektare(nilai) {
+      return Number(nilai).toLocaleString(
+        "id-ID",
+        {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }
+      );
+    }
+
+    function renderKandidatFireSpot() {
+      kandidatFireSpotLayer.clearLayers();
+
+      const toggle =
+        document.getElementById("firespot-toggle");
+
+      if (!toggle || !toggle.checked) {
+        if (map.hasLayer(kandidatFireSpotLayer)) {
+          map.removeLayer(kandidatFireSpotLayer);
+        }
+
+        return;
+      }
+
+      const data = getFilteredData().filter(
+        row =>
+          Number.isFinite(row._latitude) &&
+          Number.isFinite(row._longitude) &&
+          (
+            row._confidence === "medium" ||
+            row._confidence === "high"
+          )
+      );
+
+      const kandidat =
+        kelompokkanHotspotSpasial(data)
+          .map(anggota => ({
+            anggota,
+            klasifikasi:
+              klasifikasiKandidatFireSpot(anggota)
+          }))
+          .filter(item => item.klasifikasi);
+
+      kandidat.forEach((item, index) => {
+        const anggota = item.anggota;
+        const klasifikasi = item.klasifikasi;
+        const area = buatAreaIndikatifFireSpot(anggota);
+        const luasHektare = turf.area(area) / 10000;
+        const pusat = turf.centerMean(
+          turf.featureCollection(
+            anggota.map(row =>
+              turf.point([
+                row._longitude,
+                row._latitude
+              ])
+            )
+          )
+        );
+
+        const longitudePusat =
+          pusat.geometry.coordinates[0];
+
+        const latitudePusat =
+          pusat.geometry.coordinates[1];
+
+        const jumlahHigh = anggota.filter(
+          row => row._confidence === "high"
+        ).length;
+
+        const jumlahMedium = anggota.filter(
+          row => row._confidence === "medium"
+        ).length;
+
+        const daftarTanggal =
+          Array.from(klasifikasi.tanggal);
+
+        const idTanggal =
+          (daftarTanggal[daftarTanggal.length - 1] || "")
+            .replace(/[^0-9A-Za-z]/g, "")
+            .toUpperCase();
+
+        const idKandidat =
+          `FS-${idTanggal || "AKTIF"}-${String(index + 1).padStart(3, "0")}`;
+
+        const popup = buatKotakPopup(
+          "KANDIDAT FIRE SPOT",
+          klasifikasi.warna,
+          [
+            buatBarisPopup("ID Klaster", idKandidat),
+            buatBarisPopup("Status", klasifikasi.nama),
+            buatBarisPopup(
+              "Luas indikatif",
+              `${formatLuasHektare(luasHektare)} ha`
+            ),
+            buatBarisPopup("Jumlah hotspot", `${anggota.length} titik`),
+            buatBarisPopup(
+              "Jumlah observasi",
+              `${klasifikasi.observasi.size} lintasan/waktu`
+            ),
+            buatBarisPopup(
+              "Satelit",
+              Array.from(klasifikasi.satelit).join(", ")
+            ),
+            buatBarisPopup(
+              "Confidence",
+              `${jumlahHigh} High, ${jumlahMedium} Medium`
+            ),
+            buatBarisPopup(
+              "Periode deteksi",
+              daftarTanggal.join(" – ")
+            ),
+            buatBarisPopup(
+              "Latitude pusat",
+              latitudePusat.toFixed(5)
+            ),
+            buatBarisPopup(
+              "Longitude pusat",
+              longitudePusat.toFixed(5)
+            ),
+            buatBarisPopup(
+              "Validasi",
+              "Perlu diverifikasi lapangan"
+            )
+          ],
+          `
+            <div style="
+              margin-top:8px;
+              padding:7px;
+              color:#6d4c41;
+              background:#fff8e1;
+              border:1px solid #ffe082;
+              border-radius:4px;
+              line-height:1.35;
+            ">
+              Luas indikatif dihitung dari cakupan piksel deteksi panas
+              satelit, bukan luas terbakar definitif.
+            </div>
+            ${buatTombolGoogleMaps(latitudePusat, longitudePusat)}
+          `
+        );
+
+        const layerArea = L.geoJSON(
+          area,
+          {
+            renderer: firespotRenderer,
+            pane: "firespotPane",
+            interactive: true,
+            style: {
+              color: klasifikasi.warna,
+              weight: 2,
+              opacity: 0.95,
+              fillColor: klasifikasi.warna,
+              fillOpacity: 0.22
+            }
+          }
+        ).bindPopup(popup, {
+          maxWidth: 390,
+          maxHeight: 390,
+          autoPan: true,
+          closeButton: true,
+          keepInView: true
+        });
+
+        const markerPusat = L.circleMarker(
+          [latitudePusat, longitudePusat],
+          {
+            renderer: firespotRenderer,
+            pane: "firespotPane",
+            radius: 8,
+            color: "#ffffff",
+            weight: 2,
+            fillColor: klasifikasi.warna,
+            fillOpacity: 1
+          }
+        ).bindPopup(popup, {
+          maxWidth: 390,
+          maxHeight: 390,
+          autoPan: true,
+          closeButton: true,
+          keepInView: true
+        });
+
+        kandidatFireSpotLayer.addLayer(layerArea);
+        kandidatFireSpotLayer.addLayer(markerPusat);
+      });
+
+      if (!map.hasLayer(kandidatFireSpotLayer)) {
+        kandidatFireSpotLayer.addTo(map);
+      }
+    }
+
+    /*
+     * ======================================================
      * POPUP HOTSPOT
      * ======================================================
      */
@@ -2329,6 +2818,8 @@
         "jumlah-hotspot"
       ).textContent =
         `${jumlah} hotspot ditampilkan`;
+
+      renderKandidatFireSpot();
     }
 
     function pasangFilterListeners() {
